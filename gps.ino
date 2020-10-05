@@ -15,6 +15,10 @@
 
 #define GPSBaud 57600 // tried 115200 but got garbage in some cases
 #define SerialGPS Serial2
+#define GPS_BUFFER_SIZE 50
+
+const float latitude_deg_to_m = M_PI*12742000/360;
+const float longitude_deg_to_m = M_PI*12742000*cos(51*M_PI/180)/360;
 
 static NMEAGPS gps;
 static gps_fix fix;
@@ -66,17 +70,17 @@ bool gps_setup () {
     // !UBX CFG-NAV5 5 6 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
     sendUBX (ubxAirborne, sizeof(ubxAirborne));
     // Set GPS sample rate
-    switch (eeprom_esp32.gps_rate) {
+    switch (config_esp32.gps_rate) {
       case 1:  sendUBX( ubxRate1Hz, sizeof(ubxRate1Hz) ); break;
       case 5:  sendUBX( ubxRate5Hz, sizeof(ubxRate5Hz) ); break;
       case 10: sendUBX( ubxRate10Hz, sizeof(ubxRate10Hz) ); break;
       case 16: sendUBX( ubxRate16Hz, sizeof(ubxRate16Hz) ); break;
-      default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz); fallback to 1 Hz", eeprom_esp32.gps_rate);
+      default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz); fallback to 1 Hz", config_esp32.gps_rate);
                bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
-               eeprom_esp32.gps_rate = 1;
+               config_esp32.gps_rate = 1;
                break;
     }
-    sprintf (buffer, "Set GPS rate to %d Hz", eeprom_esp32.gps_rate);  
+    sprintf (buffer, "Set GPS rate to %d Hz", config_esp32.gps_rate);  
     bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
     // Set GPS rate to GPSBaud
     switch (GPSBaud) {
@@ -146,6 +150,13 @@ bool gps_check () {
       }
       if (neo6mv2.altitude_valid = fix.valid.altitude) {
         neo6mv2.altitude = fix.altitude();
+        if (esp32.opsmode == MODE_CHECKOUT) {
+          if (neo6mv2_zero_position (neo6mv2.latitude, neo6mv2.longitude, neo6mv2.altitude)) {
+            neo6mv2.x = (int16_t)((neo6mv2.latitude - neo6mv2.latitude_zero)*latitude_deg_to_m);
+            neo6mv2.y = (int16_t)((neo6mv2.longitude - neo6mv2.longitude_zero)*longitude_deg_to_m);
+            neo6mv2.z = (int16_t)(neo6mv2.altitude - neo6mv2.altitude_zero);
+          }
+        }
       }
       if (neo6mv2.speed_valid = fix.valid.speed) {
         neo6mv2.v_north = fix.velocity_north;
@@ -162,6 +173,36 @@ bool gps_check () {
     }
   }
   return false;
+}
+
+bool neo6mv2_zero_position (float new_latitude, float new_longitude, float new_altitude) {
+  static float latitude_buffer[GPS_BUFFER_SIZE];
+  static float longitude_buffer[GPS_BUFFER_SIZE];
+  static float altitude_buffer[GPS_BUFFER_SIZE];
+  static float latitude_sum;
+  static float longitude_sum;
+  static float altitude_sum;
+  static uint8_t gps_buffer_pos;
+  static bool zero_position_ok;
+  latitude_sum = latitude_sum - latitude_buffer[gps_buffer_pos] + new_latitude;
+  longitude_sum = longitude_sum - longitude_buffer[gps_buffer_pos] + new_longitude;
+  altitude_sum = altitude_sum - altitude_buffer[gps_buffer_pos] + new_altitude;
+  latitude_buffer[gps_buffer_pos] = new_latitude;
+  longitude_buffer[gps_buffer_pos] = new_longitude;
+  altitude_buffer[gps_buffer_pos] = new_altitude;
+  if (++gps_buffer_pos == GPS_BUFFER_SIZE) {
+    gps_buffer_pos = 0;
+    zero_position_ok = true;
+  }
+  if (zero_position_ok) {
+    neo6mv2.latitude = latitude_sum / GPS_BUFFER_SIZE;
+    neo6mv2.longitude = longitude_sum / GPS_BUFFER_SIZE;
+    neo6mv2.altitude = altitude_sum / GPS_BUFFER_SIZE;
+    return (true);
+  }
+  else {
+    return (false);
+  }
 }
 
 bool neo6mv2_checkConfig () {

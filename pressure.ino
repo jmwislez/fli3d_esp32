@@ -110,10 +110,6 @@ bool bmp280_setup () {
 
   // Reset BMP280
   bmp280_reset ();
-  if (eeprom_esp32.pressure_debug) {
-    bus_publish_event (DEBUG_ESP32, SS_BMP280, EVENT_DEBUG, "BMP280 status after reset ...");
-    bmp280_printConfig ();
-  }
 
   // Check if we find a properly responding BMP280 device
   if (bmp280_getDeviceId () == (uint8_t)BMP280_DEVICE_ID) {
@@ -133,16 +129,16 @@ bool bmp280_setup () {
   uint8_t mode = NORMAL_MODE;              // 11
   uint8_t tempOversampling;
   uint8_t presOversampling; 
-  if (eeprom_esp32.pressure_rate <= 23.1) {
+  if (config_esp32.pressure_rate <= 23.1) {
     tempOversampling = OVERSAMPLING_X2;    // 010
     presOversampling = OVERSAMPLING_X16;   // 101
-  } else if (eeprom_esp32.pressure_rate <= 44.4) {
+  } else if (config_esp32.pressure_rate <= 44.4) {
     tempOversampling = OVERSAMPLING_X1;    // 001
     presOversampling = OVERSAMPLING_X8;    // 100
-  } else if (eeprom_esp32.pressure_rate <= 75.0) {
+  } else if (config_esp32.pressure_rate <= 75.0) {
     tempOversampling = OVERSAMPLING_X1;    // 001     
     presOversampling = OVERSAMPLING_X4;    // 011
-  } else if (eeprom_esp32.pressure_rate <= 114.6) {
+  } else if (config_esp32.pressure_rate <= 114.6) {
     tempOversampling = OVERSAMPLING_X1;    // 001  
     presOversampling = OVERSAMPLING_X2;    // 010
   } else {
@@ -154,10 +150,6 @@ bool bmp280_setup () {
   bmp280_setTempOversampling (tempOversampling);
   bmp280_setPresOversampling (presOversampling);
   bmp280_setMode (mode);
-  if (eeprom_esp32.pressure_debug) {
-    bus_publish_event (DEBUG_ESP32, SS_BMP280, EVENT_DEBUG, "BMP280 status after configuration ...");
-    bmp280_checkConfig ();
-  }
   bus_publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "Initialized BMP280 barometric pressure sensor");
   return true;
 }
@@ -229,28 +221,6 @@ bool bmp280_checkConfig () {
   if (strcmp(bmp280_config1, bmp280_config1_reference)) {
     sprintf (buffer, "BMP280 configuration not as expected (%s)", bmp280_config1);
     bus_publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, buffer);
-    if (eeprom_esp32.pressure_debug) {
-      Serial.print (bmp280_config1);
-      Serial.print (" (");
-      Serial_print_hexchar_bin (bmp280_config1[0]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1[1]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1[2]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1[3]);
-      Serial.println (")");
-      Serial.print (bmp280_config1_reference);
-      Serial.print (" (");
-      Serial_print_hexchar_bin (bmp280_config1_reference[0]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1_reference[1]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1_reference[2]);
-      Serial.print (" ");
-      Serial_print_hexchar_bin (bmp280_config1_reference[3]);
-      Serial.println (")");
-    }
   }
   else {
     bus_publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "BMP280 configuration checked");

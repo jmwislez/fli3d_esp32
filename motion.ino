@@ -29,6 +29,7 @@
 const float gravity_constant = 9.81156f;
 float mpu6050_accel_scaleFactor[4] { 16384.0, 8192.0, 4096.0, 2048.0 };
 float mpu6050_gyro_scaleFactor[4] { 131.0, 65.5, 32.8, 16.4 };
+uint8_t mpu6050_ratioFactor[4] { 1, 2, 4, 8 };
 
 /*
 const struct {
@@ -72,32 +73,28 @@ bool mpu6050_setup () {
   if (!mpu6050_testConnection ()) {
     return false;
   }
-  if (eeprom_esp32.motion_debug) {
-    Serial.println ("MPU6050 initial status ...");
-    mpu6050_printConfig ();
-  }
   
   // Do self-test now, as it changes the settings
   mpu6050_selfTest (); 
 
   // Configure MPU6050  // done with direct writes, as there is something wrong with i2cdev on ESP32 and I don't want to debug
   uint8_t dlpf_bw;
-  if (eeprom_esp32.motion_rate < 20) {
+  if (config_esp32.motion_rate < 20) {
     dlpf_bw = MPU6050_DLPF_BW_5;
   }
-  else if (eeprom_esp32.motion_rate < 40) {
+  else if (config_esp32.motion_rate < 40) {
     dlpf_bw = MPU6050_DLPF_BW_10;
   }
-  else if (eeprom_esp32.motion_rate < 84) {
+  else if (config_esp32.motion_rate < 84) {
     dlpf_bw = MPU6050_DLPF_BW_20;
   }
-  else if (eeprom_esp32.motion_rate < 196) {
+  else if (config_esp32.motion_rate < 196) {
     dlpf_bw = MPU6050_DLPF_BW_42;
   }
-  else if (eeprom_esp32.motion_rate < 376) {
+  else if (config_esp32.motion_rate < 376) {
     dlpf_bw = MPU6050_DLPF_BW_98;
   }
-  else if (eeprom_esp32.motion_rate < 512) {
+  else if (config_esp32.motion_rate < 512) {
     dlpf_bw = MPU6050_DLPF_BW_188;
   }
   else {
@@ -109,7 +106,7 @@ bool mpu6050_setup () {
   mpu.setXGyroOffset (mpu6050_gyro_offset.x_sensor);
   mpu.setYGyroOffset (mpu6050_gyro_offset.y_sensor);
   mpu.setZGyroOffset (mpu6050_gyro_offset.z_sensor);
-  mpu.setRate((uint8_t)((1000 - eeprom_esp32.motion_rate) / eeprom_esp32.motion_rate)); // TODO: is it meaningful to set the rate in case of polling?
+  mpu.setRate((uint8_t)((1000 - config_esp32.motion_rate) / config_esp32.motion_rate)); // TODO: is it meaningful to set the rate in case of polling?
   mpu.setDLPFMode(dlpf_bw);
   mpu.setFullScaleGyroRange(GYRO_RANGE);
   mpu.setFullScaleAccelRange(ACCEL_RANGE);
@@ -202,40 +199,12 @@ bool mpu6050_acquire () {
     esp32.motion_current = true;
     mpu6050.millis = millis();
     mpu.getMotion6(&a_raw_z_rocket, &a_raw_x_rocket, &a_raw_y_rocket, &g_raw_z_rocket, &g_raw_x_rocket, &g_raw_y_rocket);  // axes changed for rocket orientation: x_sensor=z_rocket, y_sensor=x_rocket, z_sensor=y_rocket 
-    if (eeprom_esp32.motion_debug) {
-      Serial.print ("AccelScaleFactor: ");
-      Serial.print (mpu6050_accel_scaleFactor[ACCEL_RANGE]);
-      Serial.print (" Ax: ");
-      Serial.print (a_raw_x_rocket);
-      Serial.print (" Ax0: ");
-      Serial.print (mpu6050.a_x_offset);
-      Serial.print (" Ay: ");
-      Serial.print (a_raw_y_rocket);
-      Serial.print (" Ax0: ");
-      Serial.print (mpu6050.a_y_offset);
-      Serial.print (" Az: ");
-      Serial.print (a_raw_z_rocket);
-      Serial.print (" Ax0: ");
-      Serial.print (mpu6050.a_z_offset);
-      Serial.print ("  Gx: ");
-      Serial.print (g_raw_x_rocket);
-      Serial.print (" Gx0: ");
-      Serial.print (mpu6050.g_x_offset);
-      Serial.print (" Gy: ");
-      Serial.print (g_raw_y_rocket);
-      Serial.print (" Gy0: ");
-      Serial.print (mpu6050.g_y_offset);
-      Serial.print (" Gz: ");
-      Serial.print (g_raw_z_rocket);  
-      Serial.print (" Gz0: ");
-      Serial.println (mpu6050.g_z_offset);
-    }
-    mpu6050.accel_x_rocket = (float)(a_raw_x_rocket - mpu6050.a_x_offset)/mpu6050_accel_scaleFactor[ACCEL_RANGE];
-    mpu6050.accel_y_rocket = (float)(a_raw_y_rocket - mpu6050.a_y_offset)/mpu6050_accel_scaleFactor[ACCEL_RANGE];
-    mpu6050.accel_z_rocket = (float)(a_raw_z_rocket - mpu6050.a_z_offset)/mpu6050_accel_scaleFactor[ACCEL_RANGE];
-    mpu6050.gyro_x_rocket = (float)(g_raw_x_rocket - mpu6050.g_x_offset)/mpu6050_gyro_scaleFactor[GYRO_RANGE];
-    mpu6050.gyro_y_rocket = (float)(g_raw_y_rocket - mpu6050.g_y_offset)/mpu6050_gyro_scaleFactor[GYRO_RANGE];
-    mpu6050.gyro_z_rocket = (float)(g_raw_z_rocket - mpu6050.g_z_offset)/mpu6050_gyro_scaleFactor[GYRO_RANGE];
+    mpu6050.accel_x_rocket = (float)(a_raw_x_rocket - mpu6050.a_x_rocket_offset/mpu6050_ratioFactor[ACCEL_RANGE])/mpu6050_accel_scaleFactor[ACCEL_RANGE];
+    mpu6050.accel_y_rocket = (float)(a_raw_y_rocket - mpu6050.a_y_rocket_offset/mpu6050_ratioFactor[ACCEL_RANGE])/mpu6050_accel_scaleFactor[ACCEL_RANGE];
+    mpu6050.accel_z_rocket = (float)(a_raw_z_rocket - mpu6050.a_z_rocket_offset/mpu6050_ratioFactor[ACCEL_RANGE])/mpu6050_accel_scaleFactor[ACCEL_RANGE];
+    mpu6050.gyro_x_rocket = (float)(g_raw_x_rocket - mpu6050.g_x_rocket_offset/mpu6050_ratioFactor[GYRO_RANGE])/mpu6050_gyro_scaleFactor[GYRO_RANGE];
+    mpu6050.gyro_y_rocket = (float)(g_raw_y_rocket - mpu6050.g_y_rocket_offset/mpu6050_ratioFactor[GYRO_RANGE])/mpu6050_gyro_scaleFactor[GYRO_RANGE];
+    mpu6050.gyro_z_rocket = (float)(g_raw_z_rocket - mpu6050.g_z_rocket_offset/mpu6050_ratioFactor[GYRO_RANGE])/mpu6050_gyro_scaleFactor[GYRO_RANGE];
     mpu6050_accel_xy2 = mpu6050.accel_x_rocket*mpu6050.accel_x_rocket + mpu6050.accel_y_rocket*mpu6050.accel_y_rocket;
     mpu6050_accel_xy = sqrt (mpu6050_accel_xy2);
     mpu6050.tilt = 180.0/M_PI * atan2 (mpu6050_accel_xy, sqrt (gravity_constant*gravity_constant-mpu6050_accel_xy2));
@@ -293,9 +262,9 @@ void mpu6050_zero_gyro (int16_t new_gyro_x, int16_t new_gyro_y, int16_t new_gyro
     gyro_zero_level_ok = true;
   }
   if (gyro_zero_level_ok) {
-    mpu6050.g_x_offset = gyro_x_sum / GYRO_BUFFER_SIZE;
-    mpu6050.g_y_offset = gyro_y_sum / GYRO_BUFFER_SIZE;
-    mpu6050.g_z_offset = gyro_z_sum / GYRO_BUFFER_SIZE;
+    mpu6050.g_z_rocket_offset = gyro_x_sum / GYRO_BUFFER_SIZE;
+    mpu6050.g_x_rocket_offset = gyro_y_sum / GYRO_BUFFER_SIZE;
+    mpu6050.g_y_rocket_offset = gyro_z_sum / GYRO_BUFFER_SIZE;
   }
 }
 
@@ -317,9 +286,9 @@ void mpu6050_zero_accel (int16_t new_accel_x, int16_t new_accel_y, int16_t new_a
     accel_zero_level_ok = true;
   }
   if (accel_zero_level_ok) {
-    mpu6050.a_x_offset = accel_x_sum / ACCEL_BUFFER_SIZE;
-    mpu6050.a_y_offset = accel_y_sum / ACCEL_BUFFER_SIZE;
-    mpu6050.a_z_offset = accel_z_sum / ACCEL_BUFFER_SIZE;
+    mpu6050.a_z_rocket_offset = accel_x_sum / ACCEL_BUFFER_SIZE;
+    mpu6050.a_x_rocket_offset = accel_y_sum / ACCEL_BUFFER_SIZE;
+    mpu6050.a_y_rocket_offset = accel_z_sum / ACCEL_BUFFER_SIZE;
   }
 }
 
@@ -381,10 +350,6 @@ bool mpu6050_checkMemory (uint8_t start_address, uint8_t end_address, char *hexs
   if (strcmp(hexstring, hexstring_reference)) {
     sprintf (buffer, "MPU6050 configuration in %02x - %02x block not as expected (%s)", start_address, end_address, hexstring);
     bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, buffer);
-    if (eeprom_esp32.motion_debug) {
-      Serial.println (hexstring);
-      Serial.println (hexstring_reference);
-    }
     return false;
   }
   else {
