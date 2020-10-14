@@ -210,7 +210,7 @@ void loop() {
   if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_STATIC) {
     start_millis = millis ();    
     // FTP server is active when Fli3d is not
-    ftpSrv.handleFTP();
+    ftpSrv.handleFTP (LITTLEFS);
     tm_this->fs_ftp_enabled = true;
     timer.ftp_duration += millis() - start_millis;
   }
