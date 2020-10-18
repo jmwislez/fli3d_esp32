@@ -8,15 +8,15 @@ void ICACHE_RAM_ATTR separation_detectChange();
 void separation_setup () {
   pinMode(SEP_STS_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(SEP_STS_PIN), separation_detectChange, CHANGE);
-  bus_publish_event (STS_ESP32, SS_SEPARATION, EVENT_INIT, "Separation detection initialized");
+  publish_event (STS_ESP32, SS_SEPARATION, EVENT_INIT, "Separation detection initialized");
 }
 
 void separation_publish () {
   if (esp32.separation_sts) {
-    bus_publish_event (STS_ESP32, SS_SEPARATION, EVENT_INFO, "Fli3d separated from rocket");   
+    publish_event (STS_ESP32, SS_SEPARATION, EVENT_INFO, "Fli3d separated from rocket");   
   }
   else {
-    bus_publish_event (STS_ESP32, SS_SEPARATION, EVENT_INFO, "Fli3d mated to rocket");
+    publish_event (STS_ESP32, SS_SEPARATION, EVENT_INFO, "Fli3d mated to rocket");
   }
 }
 

@@ -114,17 +114,17 @@ bool mpu6050_setup () {
   mpu.setI2CMasterModeEnabled(false);
   mpu.setClockSource(MPU6050_CLOCK_PLL_XGYRO);
   mpu.setSleepEnabled(false);
-  bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Initialized MPU6050 accelerometer/gyroscope sensor");
+  publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Initialized MPU6050 accelerometer/gyroscope sensor");
   return true;
 }
 
 bool mpu6050_testConnection () {
   if (mpu.testConnection()) {
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Found MPU6050 6DOF motion sensor");
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Found MPU6050 6DOF motion sensor");
     return true;
   }
   else {
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_ERROR, "Failed to connect to MPU6050; disabling");
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_ERROR, "Failed to connect to MPU6050; disabling");
     return false;
   } 
 }
@@ -137,11 +137,11 @@ void mpu6050_calibrate () {
   I2Cdev::writeByte(MPU6050_DEFAULT_ADDRESS, MPU6050_RA_ACCEL_CONFIG, CALIB_ACCEL_RANGE); // Set accelerometer full-scale (should be 2 g, maximum sensitivity)
   mpu.CalibrateGyro();
   sprintf (buffer, "MPU6050 accelerometer calibration completed (offsets:[X:%d,Y:%d,Z:%d])", mpu.getXAccelOffset(), mpu.getYAccelOffset(), mpu.getZAccelOffset());
-  bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
+  publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
   mpu.CalibrateAccel(); // has been modified for gravity vector along x axis, with amplitude as parameter
   sprintf (buffer, "MPU6050 gyroscope calibration completed (offsets:[X:%d,Y:%d,Z:%d])", mpu.getXGyroOffset(), mpu.getYGyroOffset(), mpu.getZGyroOffset());
-  bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
-  bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, "Hardcode MPU6050 calibration parameters and disable calibration!");
+  publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
+  publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, "Hardcode MPU6050 calibration parameters and disable calibration!");
 }  
 
 bool mpu6050_selfTest() {
@@ -181,12 +181,12 @@ bool mpu6050_selfTest() {
   }  
   if(result[0] < 1.0f && result[1] < 1.0f && result[2] < 1.0f && result[3] < 1.0f && result[4] < 1.0f && result[5] < 1.0f) {
     sprintf (buffer, "MPU6050 passed self-test (A_dev\%:[X:%.2f,Y:%.2f,Z:%.2f],G_dev\%:[X:%.2f,Y:%.2f,Z:%.2f])", result[0], result[1], result[2], result[3], result[4], result[5]);
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, buffer);
     return true;  
   }
   else {
     sprintf (buffer, "MPU6050 failed self-test (A_dev\%:[X:%.2f,Y:%.2f,Z:%.2f],G_dev\%:[X:%.2f,Y:%.2f,Z:%.2f])", result[0], result[1], result[2], result[3], result[4], result[5]);
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, buffer);
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, buffer);
     return false;    
   }
 }    
@@ -218,19 +218,19 @@ bool mpu6050_acquire () {
     else {
       if (mpu6050.g < 0.95) {
         if (esp32.opsmode != MODE_FREEFALL) {
-          bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of free-fall detected");
+          publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of free-fall detected");
           esp32.opsmode = MODE_FREEFALL;
         }
       }
       else if (0.95 < mpu6050.g < 1.05) { // TODO: determine appropriate limits
         if (esp32.opsmode != MODE_STATIC) {
-          bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Static rocket detected");
+          publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Static rocket detected");
           esp32.opsmode = MODE_STATIC;
         }
       }
       else {
         if (esp32.opsmode != MODE_THRUST) {
-          bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of thrust detected");
+          publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of thrust detected");
           esp32.opsmode = MODE_THRUST;
         }
       }
@@ -239,7 +239,7 @@ bool mpu6050_acquire () {
   }
   else {
     // lost connection, attempt reset
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, "Lost connection to MPU6050; attempting reset");
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, "Lost connection to MPU6050; attempting reset");
     return false;
   }
 }
@@ -295,7 +295,7 @@ void mpu6050_zero_accel (int16_t new_accel_x, int16_t new_accel_y, int16_t new_a
 void motion_imageSmear () { // TODO: when to send, to be most effective?  on demand?
   // provides to camera the current expected image smear, in deg/s
   sprintf (buffer, "{\"cmd\":\"set_smear\",\"trans\":%.2f,\"axial\":%.2f}", sqrt (mpu6050.gyro_y_rocket*mpu6050.gyro_y_rocket+mpu6050.gyro_z_rocket*mpu6050.gyro_z_rocket), mpu6050.gyro_x_rocket);
-  bus_publish_event (TC_ESP32CAM, SS_OV2640, EVENT_CMD, buffer);
+  publish_event (TC_ESP32CAM, SS_OV2640, EVENT_CMD, buffer);
 }
 
 bool mpu6050_checkConfig () {
@@ -337,7 +337,7 @@ bool mpu6050_checkConfig () {
   if (mpu6050_checkMemory (start_address0, end_address0, mpu6050_config0, mpu6050_config0_reference) &&
       mpu6050_checkMemory (start_address1, end_address1, mpu6050_config1, mpu6050_config1_reference) &&
       mpu6050_checkMemory (start_address2, end_address2, mpu6050_config2, mpu6050_config2_reference)) {
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "MPU6050 configuration checked");
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "MPU6050 configuration checked");
   }
 }
 
@@ -349,7 +349,7 @@ bool mpu6050_checkMemory (uint8_t start_address, uint8_t end_address, char *hexs
   }
   if (strcmp(hexstring, hexstring_reference)) {
     sprintf (buffer, "MPU6050 configuration in %02x - %02x block not as expected (%s)", start_address, end_address, hexstring);
-    bus_publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, buffer);
+    publish_event (STS_ESP32, SS_MPU6050, EVENT_WARNING, buffer);
     return false;
   }
   else {

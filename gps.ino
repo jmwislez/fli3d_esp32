@@ -76,12 +76,12 @@ bool gps_setup () {
       case 10: sendUBX( ubxRate10Hz, sizeof(ubxRate10Hz) ); break;
       case 16: sendUBX( ubxRate16Hz, sizeof(ubxRate16Hz) ); break;
       default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz); fallback to 1 Hz", config_esp32.gps_rate);
-               bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
+               publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
                config_esp32.gps_rate = 1;
                break;
     }
     sprintf (buffer, "Set GPS rate to %d Hz", config_esp32.gps_rate);  
-    bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
     // Set GPS rate to GPSBaud
     switch (GPSBaud) {
       case 9600:    gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud9600 ); break;
@@ -89,7 +89,7 @@ bool gps_setup () {
       case 57600:   gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud57600 ); break;
       case 115200:  gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud115200 ); break;
       default:      sprintf (buffer, "Invalid baud rate request for GPS (%d baud); staying at 9600 baud", GPSBaud);
-                    bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
+                    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
                     return true;
                     break;  
     }
@@ -114,12 +114,12 @@ bool gps_connect (uint16_t baud) {
       if (gps_buffer[gps_buffer_pos] == '\n') {
         // proper data received
         sprintf (buffer, "Connected to GPS at %d baud", baud);
-        bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+        publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
         return true;
       }
       if (gps_buffer_pos == 250) {
         sprintf (buffer, "Garbage received over serial from GPS (at %d baud); disabling", baud); 
-        bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, buffer);
+        publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, buffer);
         return false;
       }
       gps_buffer_pos++;
@@ -127,7 +127,7 @@ bool gps_connect (uint16_t baud) {
   }
   // timeout
   sprintf (buffer, "No serial traffic detected from GPS (at %d baud); disabling", baud); 
-  bus_publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, buffer);
+  publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, buffer);
   return false;
 }
 
