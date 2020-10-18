@@ -1,0 +1,67 @@
+# default.cfg for Fli3d ESP32
+#
+# wifi LAN settings
+#
+wifi_enable=1           
+wifi_sta_enable=1       
+wifi_ssid=**********
+wifi_password=**********
+ntp_server=ntp.telenet.be
+#
+# wifi access point by Fli3d ESP32
+#
+wifi_ap_enable=1  
+ap_ssid=fli3d_esp32
+ap_password=fli3d_backdoor
+#
+# ftp server by Fli3d ESP32
+#
+ftp_user=esp32
+ftp_password=fli3d
+#
+# send debug data over UDP
+#
+wifi_udp_enable=1       
+udp_server=***********
+udp_port=4242
+udp_format=1
+#
+# send CCSDS data over UDP
+#
+wifi_yamcs_enable=1     
+yamcs_server=***********
+yamcs_tm_port=10042
+yamcs_tc_port=10052
+#
+# file system
+#
+fs_enable=1
+fs_autoclean=0
+#
+# sensor sampling rates
+#
+radio_rate=2
+pressure_rate=10
+motion_rate=10
+gps_rate=10
+#
+# functionality activation
+#
+radio_enable=1     
+pressure_enable=1       
+motion_enable=1         
+gps_enable=1            
+camera_enable=1     
+#
+# serial communications settings
+#
+serial_format=1
+debug_over_serial=1     
+#
+# sensor settings (TODO: current values valid for loose sensor!)
+#
+mpu6050_accel_offset_x_sensor=1144
+mpu6050_accel_offset_y_sensor=4832
+mpu6050_accel_offset_z_sensor=2086
+#
+# END OF CONFIGURATION FILE
