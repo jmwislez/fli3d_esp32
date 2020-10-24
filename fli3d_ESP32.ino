@@ -21,7 +21,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.1 (20201004)"
+#define SW_VERSION "Fli3d ESP32 v0.9.2 (20201022)"
 #define PLATFORM_ESP32 // tell which platform we are one 
 
 // Set functionality to compile
@@ -48,8 +48,9 @@ void setup() {
   load_default_config ();
   if (config_esp32.fs_enable) {
     esp32.fs_enabled = fs_setup ();
-    fs_load_config ();
-    fs_load_routing ();
+    fs_load_settings ();
+    fs_load_config (config_this->config_file);
+    fs_load_routing (config_this->routing_file);
   }
   #ifdef DEBUG_OVER_SERIAL  
   config_this->debug_over_serial = true;
@@ -104,7 +105,6 @@ void setup() {
 
 void loop() {
   static uint32_t start_millis;
-  static uint16_t data_len;
   
   timer_loop ();
   
@@ -148,9 +148,9 @@ void loop() {
 
   // ESP32CAM with OV2640 camera and SD
   #ifdef ESP32CAM
-  if (data_len = serial_check ()) {
+  if (serial_check ()) {
     start_millis = millis ();
-    serial_parse (data_len);
+    serial_parse ();
     timer.esp32cam_duration += millis() - start_millis;
   }
   #endif // ESP32CAM
@@ -196,7 +196,8 @@ void loop() {
     var_timer.last_serial_out_millis = millis();
   }
   if (!config_this->debug_over_serial and tm_this->serial_connected and millis()-var_timer.last_serial_in_millis > 2*KEEPALIVE_INTERVAL) {
-    announce_lost_serial_connection ();
+    tm_this->serial_connected = false;
+    tm_this->warn_serial_connloss = true;
   }
   timer.serial_duration += millis() - start_millis;
 
@@ -204,24 +205,36 @@ void loop() {
   if (config_esp32.ota_enable) {
     start_millis = millis ();    
     ArduinoOTA.handle();
+    esp32.ota_enabled = true;
     timer.ota_duration += millis() - start_millis;
   }
   
   // FTP check
   if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_STATIC) {
-    start_millis = millis ();    
     // FTP server is active when Fli3d is not
-    ftpSrv.handleFTP (LITTLEFS);
-    tm_this->fs_ftp_enabled = true;
+    start_millis = millis ();    
+    ftp_check ();
     timer.ftp_duration += millis() - start_millis;
   }
 
+  // TC check
+  #ifndef ASYNCUDP
+  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_READY or esp32.opsmode == MODE_STATIC) {
+    start_millis = millis (); 
+    // TC are possible when Fli3d is not flying
+    yamcs_tc_check ();
+    timer.tc_duration += millis() - start_millis;
+  }
+  #endif
+
+  // wifi check
   if (var_timer.do_wifi and esp32.wifi_enabled) {
     start_millis = millis ();
     wifi_check ();
     timer.wifi_duration += millis() - start_millis;
   }
 
+  // activity timer management
   if (var_timer.do_ntp and esp32.wifi_enabled) {
     start_millis = millis ();
     time_check ();

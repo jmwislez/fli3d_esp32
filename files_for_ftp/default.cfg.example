@@ -24,7 +24,6 @@ ftp_password=fli3d
 wifi_udp_enable=1       
 udp_server=***********
 udp_port=4242
-udp_format=1
 #
 # send CCSDS data over UDP
 #
@@ -36,7 +35,6 @@ yamcs_tc_port=10052
 # file system
 #
 fs_enable=1
-fs_autoclean=0
 #
 # sensor sampling rates
 #

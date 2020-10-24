@@ -133,7 +133,7 @@ bool gps_connect (uint16_t baud) {
 
 bool gps_check () {
   while (gps.available(SerialGPS)) {
-    esp32.gps_current = true;
+    esp32.gps_active = true;
     fix = gps.read();
     if (fix.status) {
       neo6mv2.millis = millis ();

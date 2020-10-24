@@ -196,7 +196,7 @@ bool mpu6050_acquire () {
   static float mpu6050_accel_xy, mpu6050_accel_xy2; 
 
   if (mpu.testConnection ()) {
-    esp32.motion_current = true;
+    esp32.motion_active = true;
     mpu6050.millis = millis();
     mpu.getMotion6(&a_raw_z_rocket, &a_raw_x_rocket, &a_raw_y_rocket, &g_raw_z_rocket, &g_raw_x_rocket, &g_raw_y_rocket);  // axes changed for rocket orientation: x_sensor=z_rocket, y_sensor=x_rocket, z_sensor=y_rocket 
     mpu6050.accel_x_rocket = (float)(a_raw_x_rocket - mpu6050.a_x_rocket_offset/mpu6050_ratioFactor[ACCEL_RANGE])/mpu6050_accel_scaleFactor[ACCEL_RANGE];
