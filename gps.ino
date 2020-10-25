@@ -1,11 +1,9 @@
-// TODO: disable unnecessary messages (done?)
-// TODO: check whether settings are correctly applied, issue warning if not
-// TODO: check usefulness of speed
-// TODO: test impact of loss or temporary interruption of communications
-// TODO: absolute figure for 3D accuracy should be available
-
 /*
  * Fli3d - gps functionality
+ * 
+ * configure NMEAGPS as follows:
+ * - in NeoGPS/src/NMEAGPS_cfg.h, indicate the GPS sentences to be parsed: VTG (velocities), GGA (default), GST (cs + lat/lon/alt err), GSA (pdop), LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GST (send order is VTG,GGA,GSA,GST)
+ * - in NeoGPS/src/GPSfix_cfg.h, enable only GPS_FIX_TIME, GPS_FIX_LOCATION, GPS_FIX_ALTITUDE, GPS_FIX_SPEED, GPS_FIX_VELNED, GPS_FIX_HEADING, GPS_FIX_SATELLITES, GPS_FIX_PDOP, GPS_FIX_LAT_ERR, GPS_FIX_LON_ERR, GPS_FIX_ALT_ERR 
  */
  
 #ifdef GPS
@@ -17,21 +15,18 @@
 #define SerialGPS Serial2
 #define GPS_BUFFER_SIZE 50
 
-const float latitude_deg_to_m = M_PI*12742000/360;
-const float longitude_deg_to_m = M_PI*12742000*cos(51*M_PI/180)/360;
+const int32_t latitude_deg_to_m = M_PI*12742000/360;
+const int32_t longitude_deg_to_m = M_PI*12742000*cos(51*M_PI/180)/360;
 
 static NMEAGPS gps;
 static gps_fix fix;
 
 bool gps_setup () {
-  const unsigned char ubxRate1Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xE8,0x03,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate5Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xC8,0x00,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate10Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x64,0x00,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate16Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x32,0x00,0x01,0x00,0x01,0x00 };
   const unsigned char ubxAirborne[] PROGMEM = { 0x06,0x24,0x24,0x00,0x05,0x00,0x06,0x02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
   const char disableRMC[] PROGMEM = "PUBX,40,RMC,0,0,0,0,0,0";
   const char disableGLL[] PROGMEM = "PUBX,40,GLL,0,0,0,0,0,0";
   const char disableGSV[] PROGMEM = "PUBX,40,GSV,0,0,0,0,0,0";
+  const char disableGST[] PROGMEM = "PUBX,40,GST,0,0,0,0,0,0";
   const char disableGSA[] PROGMEM = "PUBX,40,GSA,0,0,0,0,0,0";
   const char disableGGA[] PROGMEM = "PUBX,40,GGA,0,0,0,0,0,0";
   const char disableVTG[] PROGMEM = "PUBX,40,VTG,0,0,0,0,0,0";
@@ -39,6 +34,7 @@ bool gps_setup () {
   const char enableRMC[] PROGMEM = "PUBX,40,RMC,1,1,1,1,1,0";
   const char enableGLL[] PROGMEM = "PUBX,40,GLL,1,1,1,1,1,0";
   const char enableGSV[] PROGMEM = "PUBX,40,GSV,1,1,1,1,1,0";
+  const char enableGST[] PROGMEM = "PUBX,40,GST,1,1,1,1,1,0";
   const char enableGSA[] PROGMEM = "PUBX,40,GSA,1,1,1,1,1,0";
   const char enableGGA[] PROGMEM = "PUBX,40,GGA,1,1,1,1,1,0";
   const char enableVTG[] PROGMEM = "PUBX,40,VTG,1,1,1,1,1,0";
@@ -49,39 +45,29 @@ bool gps_setup () {
   const char baud115200[] PROGMEM = "PUBX,41,1,3,3,115200,0";
   const uint32_t COMMAND_DELAY = 250; 
 
-
-  if (gps_connect (9600) or gps_connect (GPSBaud)) {
-    // Disable unnecessary GPS messages (TODO: define which)
-    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableRMC ); delay( COMMAND_DELAY ); // position, velocity and time
-    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGLL ); delay( COMMAND_DELAY ); // position data: position fix, time of position fix, and status
-    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGSV ); delay( COMMAND_DELAY ); // number of SVs in view, PRN, elevation, azimuth, and SNR
+  if (gps_connect (GPSBaud) or gps_connect (9600)) {
+    // Disable unnecessary GPS messages 
+    gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableRMC ); delay( COMMAND_DELAY ); // position, velocity and time
+    gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGLL ); delay( COMMAND_DELAY ); // position data: position fix, time of position fix, and status
+    gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGSV ); delay( COMMAND_DELAY ); // number of SVs in view, PRN, elevation, azimuth, and SNR
+    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGST ); delay( COMMAND_DELAY ); // GPS Pseudorange Noise Statistics
     //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGSA ); delay( COMMAND_DELAY ); // GPS DOP and active satellites
     //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableGGA ); delay( COMMAND_DELAY ); // time, position, and fix related data
     //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableVTG ); delay( COMMAND_DELAY ); // actual track made good and speed over ground
-    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableZDA ); delay( COMMAND_DELAY ); // UTC day, month, and year, and local time zone offset
-    gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableRMC ); delay( COMMAND_DELAY ); // position, velocity and time
-    gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGLL ); delay( COMMAND_DELAY ); // position data: position fix, time of position fix, and status
-    gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGSV ); delay( COMMAND_DELAY ); // number of SVs in view, PRN, elevation, azimuth, and SNR
+    gps.send_P( &SerialGPS, (const __FlashStringHelper *) disableZDA ); delay( COMMAND_DELAY ); // UTC day, month, and year, and local time zone offset
+    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableRMC ); delay( COMMAND_DELAY ); // position, velocity and time
+    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGLL ); delay( COMMAND_DELAY ); // position data: position fix, time of position fix, and status
+    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGSV ); delay( COMMAND_DELAY ); // number of SVs in view, PRN, elevation, azimuth, and SNR
     gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGSA ); delay( COMMAND_DELAY ); // GPS DOP and active satellites
+    gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGST ); delay( COMMAND_DELAY ); // GPS Pseudorange Noise Statistics
     gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableGGA ); delay( COMMAND_DELAY ); // time, position, and fix related data
     gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableVTG ); delay( COMMAND_DELAY ); // actual track made good and speed over ground
-    gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableZDA ); delay( COMMAND_DELAY ); // UTC day, month, and year, and local time zone offset  
+    //gps.send_P( &SerialGPS, (const __FlashStringHelper *) enableZDA ); delay( COMMAND_DELAY ); // UTC day, month, and year, and local time zone offset  
     // Set navigation engine settings: CFG-NAV5 dynModel:6 fixMode:2
     // !UBX CFG-NAV5 5 6 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
     sendUBX (ubxAirborne, sizeof(ubxAirborne));
     // Set GPS sample rate
-    switch (config_esp32.gps_rate) {
-      case 1:  sendUBX( ubxRate1Hz, sizeof(ubxRate1Hz) ); break;
-      case 5:  sendUBX( ubxRate5Hz, sizeof(ubxRate5Hz) ); break;
-      case 10: sendUBX( ubxRate10Hz, sizeof(ubxRate10Hz) ); break;
-      case 16: sendUBX( ubxRate16Hz, sizeof(ubxRate16Hz) ); break;
-      default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz); fallback to 1 Hz", config_esp32.gps_rate);
-               publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
-               config_esp32.gps_rate = 1;
-               break;
-    }
-    sprintf (buffer, "Set GPS rate to %d Hz", config_esp32.gps_rate);  
-    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+    gps_set_samplerate (config_esp32.gps_rate);
     // Set GPS rate to GPSBaud
     switch (GPSBaud) {
       case 9600:    gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud9600 ); break;
@@ -95,11 +81,28 @@ bool gps_setup () {
     }
     SerialGPS.flush();
     SerialGPS.end();   
-    delay( 2*COMMAND_DELAY );
+    delay(2*COMMAND_DELAY);
     return gps_connect (GPSBaud);
   }
   else {
     return false;
+  }
+}
+
+void gps_set_samplerate (uint8_t rate) {
+  const unsigned char ubxRate1Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xE8,0x03,0x01,0x00,0x01,0x00 };
+  const unsigned char ubxRate5Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xC8,0x00,0x01,0x00,0x01,0x00 };
+  const unsigned char ubxRate10Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x64,0x00,0x01,0x00,0x01,0x00 };
+  const unsigned char ubxRate16Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x3E,0x00,0x01,0x00,0x01,0x00 };  
+  switch (rate) {
+    case 1:  sendUBX( ubxRate1Hz, sizeof(ubxRate1Hz) ); break;
+    case 5:  sendUBX( ubxRate5Hz, sizeof(ubxRate5Hz) ); break;
+    case 10: sendUBX( ubxRate10Hz, sizeof(ubxRate10Hz) ); break;
+    case 16: sendUBX( ubxRate16Hz, sizeof(ubxRate16Hz) ); break;
+    default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz)", config_esp32.gps_rate);
+             publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
+             config_esp32.gps_rate = 1;
+             break;
   }
 }
 
@@ -134,6 +137,7 @@ bool gps_connect (uint16_t baud) {
 bool gps_check () {
   while (gps.available(SerialGPS)) {
     esp32.gps_active = true;
+    radio.gps_active = true;
     fix = gps.read();
     if (fix.status) {
       neo6mv2.millis = millis ();
@@ -143,45 +147,49 @@ bool gps_check () {
         neo6mv2.hours = fix.dateTime.hours;
         neo6mv2.minutes = fix.dateTime.minutes;
         neo6mv2.seconds = fix.dateTime.seconds;
+        neo6mv2.centiseconds = fix.dateTime_cs;
       }
       if (neo6mv2.location_valid = fix.valid.location) {
-        neo6mv2.latitude = fix.latitude();
-        neo6mv2.longitude = fix.longitude();
+        neo6mv2.latitude = fix.latitudeL();
+        neo6mv2.longitude = fix.longitudeL();
       }
       if (neo6mv2.altitude_valid = fix.valid.altitude) {
-        neo6mv2.altitude = fix.altitude();
+        neo6mv2.altitude = fix.altitude_cm();
         if (esp32.opsmode == MODE_CHECKOUT) {
-          if (neo6mv2_zero_position (neo6mv2.latitude, neo6mv2.longitude, neo6mv2.altitude)) {
-            neo6mv2.x = (int16_t)((neo6mv2.latitude - neo6mv2.latitude_zero)*latitude_deg_to_m);
-            neo6mv2.y = (int16_t)((neo6mv2.longitude - neo6mv2.longitude_zero)*longitude_deg_to_m);
-            neo6mv2.z = (int16_t)(neo6mv2.altitude - neo6mv2.altitude_zero);
-          }
+          neo6mv2.offset_valid = neo6mv2_zero_position (neo6mv2.latitude, neo6mv2.longitude, neo6mv2.altitude);
         }
       }
-      if (neo6mv2.speed_valid = fix.valid.speed) {
-        neo6mv2.v_north = fix.velocity_north;
-        neo6mv2.v_east = fix.velocity_east;
-        neo6mv2.v_down = fix.velocity_down; 
+      if (neo6mv2.offset_valid) {
+        neo6mv2.x = (int16_t)((neo6mv2.latitude - neo6mv2.latitude_zero)*latitude_deg_to_m)/10000; //cm
+        neo6mv2.y = (int16_t)((neo6mv2.longitude - neo6mv2.longitude_zero)*longitude_deg_to_m)/10000; //cm
+        neo6mv2.z = (int16_t)(neo6mv2.altitude - neo6mv2.altitude_zero);
+      }      
+      if (neo6mv2.speed_valid = fix.valid.velned) {
+        neo6mv2.v_north = fix.velocity_north; // cm/s
+        neo6mv2.v_east = fix.velocity_east;   // cm/s
+        neo6mv2.v_down = fix.velocity_down;   // cm/s
       }
-      if (neo6mv2.hdop_valid = fix.valid.hdop) {
-        neo6mv2.milli_hdop = fix.hdop;
-      }
-      if (neo6mv2.vdop_valid = fix.valid.vdop) {
-        neo6mv2.milli_vdop = fix.vdop;
-      }
+      if (neo6mv2.pdop_valid = fix.valid.pdop) { 
+        neo6mv2.milli_pdop = fix.pdop; 
+      } 
+      if (neo6mv2.error_valid = (fix.valid.lat_err and fix.valid.lon_err and fix.valid.alt_err)) {
+        neo6mv2.x_err = fix.lat_err_cm;
+        neo6mv2.y_err = fix.lon_err_cm;
+        neo6mv2.z_err = fix.alt_err_cm;
+      } 
       return true;
     }
   }
   return false;
 }
 
-bool neo6mv2_zero_position (float new_latitude, float new_longitude, float new_altitude) {
-  static float latitude_buffer[GPS_BUFFER_SIZE];
-  static float longitude_buffer[GPS_BUFFER_SIZE];
-  static float altitude_buffer[GPS_BUFFER_SIZE];
-  static float latitude_sum;
-  static float longitude_sum;
-  static float altitude_sum;
+bool neo6mv2_zero_position (int32_t new_latitude, int32_t new_longitude, int32_t new_altitude) {
+  static int32_t latitude_buffer[GPS_BUFFER_SIZE];
+  static int32_t longitude_buffer[GPS_BUFFER_SIZE];
+  static int32_t altitude_buffer[GPS_BUFFER_SIZE];
+  static int64_t latitude_sum;
+  static int64_t longitude_sum;
+  static int32_t altitude_sum;
   static uint8_t gps_buffer_pos;
   static bool zero_position_ok;
   latitude_sum = latitude_sum - latitude_buffer[gps_buffer_pos] + new_latitude;
@@ -195,22 +203,14 @@ bool neo6mv2_zero_position (float new_latitude, float new_longitude, float new_a
     zero_position_ok = true;
   }
   if (zero_position_ok) {
-    neo6mv2.latitude = latitude_sum / GPS_BUFFER_SIZE;
-    neo6mv2.longitude = longitude_sum / GPS_BUFFER_SIZE;
-    neo6mv2.altitude = altitude_sum / GPS_BUFFER_SIZE;
+    neo6mv2.latitude_zero = latitude_sum / GPS_BUFFER_SIZE;
+    neo6mv2.longitude_zero = longitude_sum / GPS_BUFFER_SIZE;
+    neo6mv2.altitude_zero = altitude_sum / GPS_BUFFER_SIZE;
     return (true);
   }
   else {
     return (false);
   }
-}
-
-bool neo6mv2_checkConfig () {
-  // TODO: TBW
-}
-
-void neo6mv2_printConfig () {
-  // TODO: TBW
 }
 
 // support functions

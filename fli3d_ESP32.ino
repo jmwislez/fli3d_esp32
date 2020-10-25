@@ -60,7 +60,7 @@ void setup() {
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
   publish_packet (TM_THIS);  
   if (config_this->wifi_enable) {
-    tm_this->wifi_enabled = wifi_setup ();
+    wifi_setup ();
     publish_packet (TM_THIS);  
   } 
 
@@ -71,7 +71,6 @@ void setup() {
   #endif // ESP32CAM 
   #ifdef GPS
   if (esp32.gps_enabled = gps_setup ()) {
-    neo6mv2_checkConfig ();
     publish_packet (TM_THIS);  
   }
   #endif // GPS
