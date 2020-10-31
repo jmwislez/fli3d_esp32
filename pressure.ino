@@ -68,11 +68,6 @@
 #define BMP280_MEASURING_BIT            3
 
 
-// Settings and global variables for BMP280
-float zero_level_pressure = 1013.0f;
-float bmp280_old_altitude;
-uint32_t bmp280_millis, bmp280_old_millis;
-
 struct {                                  
   // The BMP280 compensation trim parameters (coefficients)
   uint16_t dig_T1;
@@ -160,20 +155,21 @@ bool bmp280_check () {
 
 bool bmp280_acquire () {
   static uint8_t bmp280_data[6];
-  bmp280_old_altitude = bmp280.altitude;
+  static int16_t bmp280_old_height;
+  static uint32_t bmp280_old_millis;
+  
+  bmp280_old_height = bmp280.height;
   bmp280_old_millis = bmp280.millis;
   while (!bmp280_check()) { }
   if (bmp280_getDeviceId () == (uint8_t)BMP280_DEVICE_ID) {
     bmp280.millis = millis();
+    esp32.pressure_active = true;
+    radio.pressure_active = true;
     I2Cdev::readBytes(BMP280_I2C_Address, BMP280_REGISTER_PRES_MSB, 6, &bmp280_data[0], 0);
-    int32_t adcPres = (int32_t)bmp280_data[0] << 12 | (int32_t)bmp280_data[1] << 4 | (int32_t)bmp280_data[2] >> 4;
-    uint32_t pres = bmp280_compensate_P_int64(adcPres);
-    bmp280.pressure = (float)pres / 256.0f / 100.0f; // [Pa]
-    int32_t adcTemp = (int32_t)bmp280_data[3] << 12 | (int32_t)bmp280_data[4] << 4 | (int32_t)bmp280_data[5] >> 4;
-    int32_t temp = bmp280_compensate_T_int32(adcTemp);
-    bmp280.temperature = (float)temp / 100.0f; // [degC]
-    bmp280.altitude = ((float)powf(bmp280.zero_level_pressure / bmp280.pressure, 0.190223f) - 1.0f) * (bmp280.temperature + 273.15f) / 0.0065f; // [m]
-    bmp280.velocity_v = 1000*(bmp280.altitude - bmp280_old_altitude) / (bmp280.millis - bmp280_old_millis); // [m/s] 
+    bmp280.pressure = bmp280_compensate_P_int64 ((int32_t)bmp280_data[0] << 12 | (int32_t)bmp280_data[1] << 4 | (int32_t)bmp280_data[2] >> 4) / 256; // [Pa]
+    bmp280.temperature = bmp280_compensate_T_int32 ((int32_t)bmp280_data[3] << 12 | (int32_t)bmp280_data[4] << 4 | (int32_t)bmp280_data[5] >> 4); //[cdegC]
+    bmp280.height = int16_t(round((powf((float)bmp280.zero_level_pressure / (float)bmp280.pressure, 0.190223f) - 1.0f) * (float)(bmp280.temperature + 27315) / 0.0065f)); // [cm]
+    bmp280.velocity_v = 1000*(bmp280.height - bmp280_old_height) / (int16_t)(bmp280.millis - bmp280_old_millis); // [cm/s] 
     if (esp32.opsmode == MODE_CHECKOUT) {
       bmp280.zero_level_pressure = bmp280_zero_level (bmp280.pressure);
     }
@@ -186,9 +182,9 @@ bool bmp280_acquire () {
   }
 }
 
-float bmp280_zero_level (float new_pressure) {
-  static float pressure_buffer[PRESSURE_BUFFER_SIZE];
-  static float pressure_sum;
+uint32_t bmp280_zero_level (uint32_t new_pressure) {
+  static uint32_t pressure_buffer[PRESSURE_BUFFER_SIZE];
+  static uint64_t pressure_sum;
   static uint8_t pressure_buffer_pos;
   static bool zero_level_ok;
   pressure_sum = pressure_sum - pressure_buffer[pressure_buffer_pos] + new_pressure;
@@ -196,12 +192,13 @@ float bmp280_zero_level (float new_pressure) {
   if (++pressure_buffer_pos == PRESSURE_BUFFER_SIZE) {
     pressure_buffer_pos = 0;
     zero_level_ok = true;
+    bmp280.height_valid = true;
   }
   if (zero_level_ok) {
     return (pressure_sum / PRESSURE_BUFFER_SIZE);
   }
   else {
-    return (1013.0);
+    return (101300);
   }
 }
 
@@ -221,9 +218,11 @@ bool bmp280_checkConfig () {
   if (strcmp(bmp280_config1, bmp280_config1_reference)) {
     sprintf (buffer, "BMP280 configuration not as expected (%s)", bmp280_config1);
     publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, buffer);
+    return false;
   }
   else {
     publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "BMP280 configuration checked");
+    return true;
   }
 }
 
@@ -290,7 +289,7 @@ int32_t bmp280_compensate_T_int32(int32_t adc_T) {
 }
 
 uint32_t bmp280_compensate_P_int64(int32_t adc_P) {
-  // Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
+  // Returns pressure in Pa as char32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits).
   // Output value of 24674867 represents 24674867/256 = 96386.2 Pa = 963.862 hPa
   int64_t var1, var2, p;
   var1 = ((int64_t)t_fine) - 128000;
@@ -389,4 +388,4 @@ bool bmp280_getMeasuringStatus () {
   return (measuring);
 }
 
-#endif
+#endif // PRESSURE

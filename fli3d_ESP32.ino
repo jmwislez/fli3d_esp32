@@ -21,7 +21,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.2 (20201022)"
+#define SW_VERSION "Fli3d ESP32 v0.9.3 (20201031)"
 #define PLATFORM_ESP32 // tell which platform we are one 
 
 // Set functionality to compile
@@ -44,7 +44,6 @@ void setup() {
   Serial.begin (SerialBaud);
   Serial.println ();
   Serial.setDebugOutput (true);
-  tm_this->mem_free = ESP.getFreeHeap();
   load_default_config ();
   if (config_esp32.fs_enable) {
     esp32.fs_enabled = fs_setup ();
@@ -70,19 +69,20 @@ void setup() {
   }
   #endif // ESP32CAM 
   #ifdef GPS
-  if (esp32.gps_enabled = gps_setup ()) {
+  if ((esp32.gps_enabled = gps_setup ())) {
     publish_packet (TM_THIS);  
   }
   #endif // GPS
   #ifdef MOTION
-  if (esp32.motion_enabled = motion_setup ()) {
-    //mpu6050_calibrate ();    // to be done offline, with vertical still rocket, then hardcode calibration values
+  if ((esp32.motion_enabled = motion_setup ())) {
+    //mpu6050_calibrate ();    // to be done offline on loose sensor, then put calibration values in configuration file
     mpu6050_checkConfig (); 
+    //mpu6050_printConfig (); 
     publish_packet (TM_THIS);  
   }
   #endif // MOTION
   #ifdef PRESSURE
-  if (esp32.pressure_enabled = pressure_setup ()) { // needs to be after MOTION
+  if ((esp32.pressure_enabled = pressure_setup ())) { // needs to be after MOTION
     bmp280_checkConfig ();
     publish_packet (TM_THIS);  
   }
@@ -115,7 +115,7 @@ void loop() {
  
   // BMP280 pressure sensor
   #ifdef PRESSURE
-  if (var_timer.do_pressure and esp32.pressure_enabled) {
+  else if (var_timer.do_pressure and esp32.pressure_enabled) {
     start_millis = millis ();
     if (bmp280_acquire ()) {
       publish_packet (TM_PRESSURE);
@@ -131,7 +131,7 @@ void loop() {
 
   // MPU6050 accelerometer/gyroscope
   #ifdef MOTION
-  if (var_timer.do_motion and esp32.motion_enabled) {
+  else if (var_timer.do_motion and esp32.motion_enabled) {
     start_millis = millis ();
     if (mpu6050_acquire ()) {
       publish_packet (TM_MOTION);
@@ -144,6 +144,18 @@ void loop() {
     timer.motion_duration += millis() - start_millis;
   } 
   #endif // MOTION
+
+  // WL101-341 RF 433 MHz Transmitter
+  #ifdef RADIO
+  else if (esp32.radio_enabled) {
+    if (var_timer.do_radio) {
+      start_millis = millis ();
+      publish_packet (TM_RADIO);
+      var_timer.do_radio = false;
+      timer.radio_duration += millis() - start_millis;
+    }
+  }
+  #endif // RADIO
 
   // ESP32CAM with OV2640 camera and SD
   #ifdef ESP32CAM
@@ -158,31 +170,25 @@ void loop() {
   #ifdef GPS
   if (esp32.gps_enabled) {
     start_millis = millis ();
-    if (gps_check ()) {
-      publish_packet (TM_GPS);
-      reset_gps_timer = true;
-      var_timer.do_gps = false;
+    if (config_esp32.gps_udp_raw_enable) {
+      publish_udp_gps ();
     }
-    if (var_timer.do_gps) {
-      publish_packet (TM_GPS);
-      var_timer.do_gps = false;
+    else {
+      if (gps_check ()) {
+        publish_packet (TM_GPS);
+        reset_gps_timer = true;
+        var_timer.do_gps = false;
+      }
+      if (var_timer.do_gps) {
+        neo6mv2.millis = millis();
+        publish_packet (TM_GPS);
+        var_timer.do_gps = false;
+      }
     }
     timer.gps_duration += millis() - start_millis;
   }
   #endif // GPS
   
-  // WL101-341 RF 433 MHz Transmitter
-  #ifdef RADIO
-  if (esp32.radio_enabled) {
-    if (var_timer.do_radio) {
-      start_millis = millis ();
-      publish_packet (TM_RADIO);
-      var_timer.do_radio = false;
-      timer.radio_duration += millis() - start_millis;
-    }
-  }
-  #endif // RADIO
-
   // Serial keepalive mechanism
   start_millis = millis ();    
   if (!config_this->debug_over_serial and timer.millis - var_timer.last_serial_out_millis > KEEPALIVE_INTERVAL) {

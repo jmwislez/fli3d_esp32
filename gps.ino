@@ -2,8 +2,8 @@
  * Fli3d - gps functionality
  * 
  * configure NMEAGPS as follows:
- * - in NeoGPS/src/NMEAGPS_cfg.h, indicate the GPS sentences to be parsed: VTG (velocities), GGA (default), GST (cs + lat/lon/alt err), GSA (pdop), LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GST (send order is VTG,GGA,GSA,GST)
- * - in NeoGPS/src/GPSfix_cfg.h, enable only GPS_FIX_TIME, GPS_FIX_LOCATION, GPS_FIX_ALTITUDE, GPS_FIX_SPEED, GPS_FIX_VELNED, GPS_FIX_HEADING, GPS_FIX_SATELLITES, GPS_FIX_PDOP, GPS_FIX_LAT_ERR, GPS_FIX_LON_ERR, GPS_FIX_ALT_ERR 
+ * - in NeoGPS/src/NMEAGPS_cfg.h, indicate the GPS sentences to be parsed: VTG (velocities), GGA (default), GST (cs + lat/lon/alt err), GSA (hdop/vdop/pdop), LAST_SENTENCE_IN_INTERVAL NMEAGPS::NMEA_GST (send order is VTG,GGA,GSA,GST)
+ * - in NeoGPS/src/GPSfix_cfg.h, enable only GPS_FIX_TIME, GPS_FIX_LOCATION, GPS_FIX_ALTITUDE, GPS_FIX_SPEED, GPS_FIX_VELNED, GPS_FIX_HEADING, GPS_FIX_SATELLITES, GPS_FIX_HDOP, GPS_FIX_VDOP, GPS_FIX_PDOP, GPS_FIX_LAT_ERR, GPS_FIX_LON_ERR, GPS_FIX_ALT_ERR 
  */
  
 #ifdef GPS
@@ -22,7 +22,7 @@ static NMEAGPS gps;
 static gps_fix fix;
 
 bool gps_setup () {
-  const unsigned char ubxAirborne[] PROGMEM = { 0x06,0x24,0x24,0x00,0x05,0x00,0x06,0x02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+  const char ubxAirborne[] PROGMEM = { 0x06,0x24,0x24,0x00,0x05,0x00,0x06,0x02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
   const char disableRMC[] PROGMEM = "PUBX,40,RMC,0,0,0,0,0,0";
   const char disableGLL[] PROGMEM = "PUBX,40,GLL,0,0,0,0,0,0";
   const char disableGSV[] PROGMEM = "PUBX,40,GSV,0,0,0,0,0,0";
@@ -90,10 +90,10 @@ bool gps_setup () {
 }
 
 void gps_set_samplerate (uint8_t rate) {
-  const unsigned char ubxRate1Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xE8,0x03,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate5Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xC8,0x00,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate10Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x64,0x00,0x01,0x00,0x01,0x00 };
-  const unsigned char ubxRate16Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x3E,0x00,0x01,0x00,0x01,0x00 };  
+  const char ubxRate1Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xE8,0x03,0x01,0x00,0x01,0x00 };
+  const char ubxRate5Hz[] PROGMEM =  { 0x06,0x08,0x06,0x00,0xC8,0x00,0x01,0x00,0x01,0x00 };
+  const char ubxRate10Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x64,0x00,0x01,0x00,0x01,0x00 };
+  const char ubxRate16Hz[] PROGMEM = { 0x06,0x08,0x06,0x00,0x3E,0x00,0x01,0x00,0x01,0x00 };  
   switch (rate) {
     case 1:  sendUBX( ubxRate1Hz, sizeof(ubxRate1Hz) ); break;
     case 5:  sendUBX( ubxRate5Hz, sizeof(ubxRate5Hz) ); break;
@@ -110,7 +110,7 @@ bool gps_connect (uint16_t baud) {
   SerialGPS.begin(baud, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   uint32_t start_probe_millis = millis ();
   char gps_buffer[255];
-  uint8_t gps_buffer_pos;
+  uint8_t gps_buffer_pos = 0;
   while (millis() - start_probe_millis < 2000) {
     while (SerialGPS.available()) {
       gps_buffer[gps_buffer_pos] = SerialGPS.read();
@@ -143,17 +143,17 @@ bool gps_check () {
       neo6mv2.millis = millis ();
       neo6mv2.status = fix.status;
       neo6mv2.satellites = fix.satellites;
-      if (neo6mv2.time_valid = fix.valid.time) {
+      if ((neo6mv2.time_valid = fix.valid.time)) {
         neo6mv2.hours = fix.dateTime.hours;
         neo6mv2.minutes = fix.dateTime.minutes;
         neo6mv2.seconds = fix.dateTime.seconds;
         neo6mv2.centiseconds = fix.dateTime_cs;
       }
-      if (neo6mv2.location_valid = fix.valid.location) {
+      if ((neo6mv2.location_valid = fix.valid.location)) {
         neo6mv2.latitude = fix.latitudeL();
         neo6mv2.longitude = fix.longitudeL();
       }
-      if (neo6mv2.altitude_valid = fix.valid.altitude) {
+      if ((neo6mv2.altitude_valid = fix.valid.altitude)) {
         neo6mv2.altitude = fix.altitude_cm();
         if (esp32.opsmode == MODE_CHECKOUT) {
           neo6mv2.offset_valid = neo6mv2_zero_position (neo6mv2.latitude, neo6mv2.longitude, neo6mv2.altitude);
@@ -164,15 +164,21 @@ bool gps_check () {
         neo6mv2.y = (int16_t)((neo6mv2.longitude - neo6mv2.longitude_zero)*longitude_deg_to_m)/10000; //cm
         neo6mv2.z = (int16_t)(neo6mv2.altitude - neo6mv2.altitude_zero);
       }      
-      if (neo6mv2.speed_valid = fix.valid.velned) {
+      if ((neo6mv2.speed_valid = fix.valid.velned)) {
         neo6mv2.v_north = fix.velocity_north; // cm/s
         neo6mv2.v_east = fix.velocity_east;   // cm/s
         neo6mv2.v_down = fix.velocity_down;   // cm/s
       }
-      if (neo6mv2.pdop_valid = fix.valid.pdop) { 
+      if ((neo6mv2.hdop_valid = fix.valid.hdop)) { 
+        neo6mv2.milli_hdop = fix.hdop; 
+      } 
+      if ((neo6mv2.vdop_valid = fix.valid.vdop)) { 
+        neo6mv2.milli_vdop = fix.vdop; 
+      } 
+      if ((neo6mv2.pdop_valid = fix.valid.pdop)) { 
         neo6mv2.milli_pdop = fix.pdop; 
       } 
-      if (neo6mv2.error_valid = (fix.valid.lat_err and fix.valid.lon_err and fix.valid.alt_err)) {
+      if ((neo6mv2.error_valid = (fix.valid.lat_err and fix.valid.lon_err and fix.valid.alt_err))) {
         neo6mv2.x_err = fix.lat_err_cm;
         neo6mv2.y_err = fix.lon_err_cm;
         neo6mv2.z_err = fix.alt_err_cm;
@@ -213,9 +219,25 @@ bool neo6mv2_zero_position (int32_t new_latitude, int32_t new_longitude, int32_t
   }
 }
 
+void publish_udp_gps () {
+  static char gps_buffer[80];
+  static uint8_t gps_buffer_pos;
+  while(SerialGPS.available()) {
+    char c = SerialGPS.read();
+    if (c != 0x0D) {
+      gps_buffer[gps_buffer_pos++] = c;
+    }
+    if (c == 0x0A) {
+      c = 0x00;
+      publish_udp_text (gps_buffer);
+      gps_buffer_pos = 0;
+    }
+  } 
+}
+
 // support functions
 
-void sendUBX( const unsigned char *progmemBytes, size_t len ) {
+void sendUBX( const char *progmemBytes, size_t len ) {
   SerialGPS.write( 0xB5 ); // SYNC1
   SerialGPS.write( 0x62 ); // SYNC2
   uint8_t a = 0, b = 0;
@@ -229,4 +251,4 @@ void sendUBX( const unsigned char *progmemBytes, size_t len ) {
   SerialGPS.write( b ); // CHECKSUM B
 } 
 
-#endif
+#endif // GPS
