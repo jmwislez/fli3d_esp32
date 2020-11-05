@@ -5,7 +5,6 @@
 #ifdef RADIO
 
 RH_ASK radio_tx (RADIO_BAUD, DUMMY_PIN1, RF433_TX_PIN, DUMMY_PIN2);
-char radio_buffer[2*(sizeof(tm_radio_t)+2)];
 
 bool radio_setup () {
   delay(1000);
