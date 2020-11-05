@@ -45,6 +45,7 @@ void setup() {
   Serial.println ();
   Serial.setDebugOutput (true);
   load_default_config ();
+  ccsds_init ();
   if (config_esp32.fs_enable) {
     esp32.fs_enabled = fs_setup ();
     fs_load_settings ();
@@ -57,10 +58,10 @@ void setup() {
   #endif // DEBUG_OVER_SERIAL
   sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
-  publish_packet (TM_THIS);  
+  publish_packet ((ccsds_t*)&esp32);  
   if (config_this->wifi_enable) {
     wifi_setup ();
-    publish_packet (TM_THIS);  
+    publish_packet ((ccsds_t*)&esp32);  
   } 
 
   #ifdef ESP32CAM
@@ -70,7 +71,7 @@ void setup() {
   #endif // ESP32CAM 
   #ifdef GPS
   if ((esp32.gps_enabled = gps_setup ())) {
-    publish_packet (TM_THIS);  
+    publish_packet ((ccsds_t*)&esp32);  
   }
   #endif // GPS
   #ifdef MOTION
@@ -78,19 +79,19 @@ void setup() {
     //mpu6050_calibrate ();    // to be done offline on loose sensor, then put calibration values in configuration file
     mpu6050_checkConfig (); 
     //mpu6050_printConfig (); 
-    publish_packet (TM_THIS);  
+    publish_packet ((ccsds_t*)&esp32);  
   }
   #endif // MOTION
   #ifdef PRESSURE
   if ((esp32.pressure_enabled = pressure_setup ())) { // needs to be after MOTION
     bmp280_checkConfig ();
-    publish_packet (TM_THIS);  
+    publish_packet ((ccsds_t*)&esp32);  
   }
   #endif // PRESSURE
   #ifdef RADIO
   if (config_esp32.radio_enable) {
     esp32.radio_enabled = radio_setup ();
-    publish_packet (TM_THIS);  
+    publish_packet ((ccsds_t*)&esp32);  
   }
   #endif // RADIO
   separation_setup ();
@@ -118,7 +119,7 @@ void loop() {
   else if (var_timer.do_pressure and esp32.pressure_enabled) {
     start_millis = millis ();
     if (bmp280_acquire ()) {
-      publish_packet (TM_PRESSURE);
+      publish_packet ((ccsds_t*)&bmp280);
     }
     else {
       // will try to reset pressure sensor once, and then give up
@@ -134,7 +135,7 @@ void loop() {
   else if (var_timer.do_motion and esp32.motion_enabled) {
     start_millis = millis ();
     if (mpu6050_acquire ()) {
-      publish_packet (TM_MOTION);
+      publish_packet ((ccsds_t*)&mpu6050);
     }
     else {
       // will try to reset accelerometer once, and then give up
@@ -150,7 +151,7 @@ void loop() {
   else if (esp32.radio_enabled) {
     if (var_timer.do_radio) {
       start_millis = millis ();
-      publish_packet (TM_RADIO);
+      publish_packet ((ccsds_t*)&radio);
       var_timer.do_radio = false;
       timer.radio_duration += millis() - start_millis;
     }
@@ -175,13 +176,13 @@ void loop() {
     }
     else {
       if (gps_check ()) {
-        publish_packet (TM_GPS);
+        publish_packet ((ccsds_t*)&neo6mv2);
         reset_gps_timer = true;
         var_timer.do_gps = false;
       }
       if (var_timer.do_gps) {
         neo6mv2.millis = millis();
-        publish_packet (TM_GPS);
+        publish_packet ((ccsds_t*)&neo6mv2);
         var_timer.do_gps = false;
       }
     }

@@ -14,8 +14,8 @@ void timer_loop () {
   // data acquisition and publication timer
   timer.millis = millis ();
   if (timer.millis >= var_timer.next_second) {
-    publish_packet (TM_ESP32);
-    publish_packet (TM_TIMER);
+    publish_packet ((ccsds_t*)&esp32);
+    publish_packet ((ccsds_t*)&timer);
     var_timer.next_second += 1000;
   }
   else if (timer.millis >= var_timer.next_radio_time) {
