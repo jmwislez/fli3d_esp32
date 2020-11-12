@@ -114,6 +114,8 @@ bool gps_connect (uint16_t baud) {
   while (millis() - start_probe_millis < 2000) {
     while (SerialGPS.available()) {
       gps_buffer[gps_buffer_pos] = SerialGPS.read();
+      Serial.print (gps_buffer[gps_buffer_pos]); // TODO: DEBUG
+      Serial.print ("."); // TODO: DEBUG
       if (gps_buffer[gps_buffer_pos] == '\n') {
         // proper data received
         sprintf (buffer, "Connected to GPS at %d baud", baud);

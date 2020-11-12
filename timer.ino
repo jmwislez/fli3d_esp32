@@ -18,30 +18,32 @@ void timer_loop () {
     publish_packet ((ccsds_t*)&timer);
     var_timer.next_second += 1000;
   }
-  else if (timer.millis >= var_timer.next_radio_time) {
-    var_timer.do_radio = true;
-    var_timer.next_radio_time = timer.millis + var_timer.radio_interval;
+  if (esp32.opsmode != MODE_DONE) {
+    if (timer.millis >= var_timer.next_radio_time) {
+      var_timer.do_radio = true;
+      var_timer.next_radio_time = timer.millis + var_timer.radio_interval;
+    }
+    if (timer.millis >= var_timer.next_pressure_time) {
+      var_timer.do_pressure = true;
+      var_timer.next_pressure_time = timer.millis + var_timer.pressure_interval;
+    }
+    if (timer.millis >= var_timer.next_motion_time) {
+      var_timer.do_motion = true;
+      var_timer.next_motion_time = timer.millis + var_timer.motion_interval;
+    }
+    if (reset_gps_timer) {
+      var_timer.next_gps_time = timer.millis + 1000;  // return to 1Hz when no data any more    
+    }
+    if (timer.millis >= var_timer.next_gps_time) {
+      var_timer.do_gps = true;
+      var_timer.next_gps_time = timer.millis + 1000;  // 1Hz as long as no data 
+    }
   }
-  else if (timer.millis >= var_timer.next_pressure_time) {
-    var_timer.do_pressure = true;
-    var_timer.next_pressure_time = timer.millis + var_timer.pressure_interval;
-  }
-  else if (timer.millis >= var_timer.next_motion_time) {
-    var_timer.do_motion = true;
-    var_timer.next_motion_time = timer.millis + var_timer.motion_interval;
-  }
-  else if (reset_gps_timer) {
-    var_timer.next_gps_time = timer.millis + 1000;  // return to 1Hz when no data any more    
-  }
-  else if (timer.millis >= var_timer.next_gps_time) {
-    var_timer.do_gps = true;
-    var_timer.next_gps_time = timer.millis + 1000;  // 1Hz as long as no data 
-  }
-  else if (timer.millis >= var_timer.next_wifi_time) {
+  if (timer.millis >= var_timer.next_wifi_time) {
     var_timer.do_wifi = true;
     var_timer.next_wifi_time = timer.millis + WIFI_POLL;
   } 
-  else if (timer.millis >= var_timer.next_ntp_time) {
+  if (timer.millis >= var_timer.next_ntp_time) {
     var_timer.do_ntp = true;
     var_timer.next_ntp_time = timer.millis + 1000;
   }

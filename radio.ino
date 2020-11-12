@@ -3,6 +3,7 @@
  */
 
 #ifdef RADIO
+#include <RH_ASK.h>
 
 RH_ASK radio_tx (RADIO_BAUD, DUMMY_PIN1, RF433_TX_PIN, DUMMY_PIN2);
 

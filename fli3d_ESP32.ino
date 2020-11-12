@@ -21,7 +21,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.3 (20201031)"
+#define SW_VERSION "Fli3d ESP32 v0.9.3 (20201112)"
 #define PLATFORM_ESP32 // tell which platform we are one 
 
 // Set functionality to compile
@@ -58,10 +58,10 @@ void setup() {
   #endif // DEBUG_OVER_SERIAL
   sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
-  publish_packet ((ccsds_t*)&esp32);  
+  publish_packet ((ccsds_t*)&esp32);  // #1
   if (config_this->wifi_enable) {
     wifi_setup ();
-    publish_packet ((ccsds_t*)&esp32);  
+    publish_packet ((ccsds_t*)&esp32);  // #2
   } 
 
   #ifdef ESP32CAM
@@ -71,7 +71,7 @@ void setup() {
   #endif // ESP32CAM 
   #ifdef GPS
   if ((esp32.gps_enabled = gps_setup ())) {
-    publish_packet ((ccsds_t*)&esp32);  
+    publish_packet ((ccsds_t*)&esp32);  // #3
   }
   #endif // GPS
   #ifdef MOTION
@@ -216,8 +216,8 @@ void loop() {
   }
   
   // FTP check
-  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_STATIC) {
-    // FTP server is active when Fli3d is not
+  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) {
+    // FTP server is active when Fli3d is being prepared or done
     start_millis = millis ();    
     ftp_check ();
     timer.ftp_duration += millis() - start_millis;
@@ -225,7 +225,7 @@ void loop() {
 
   // TC check
   #ifndef ASYNCUDP
-  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_READY or esp32.opsmode == MODE_STATIC) {
+  if (esp32.state == STATE_STATIC) {
     start_millis = millis (); 
     // TC are possible when Fli3d is not flying
     yamcs_tc_check ();

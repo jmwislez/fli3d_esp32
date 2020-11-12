@@ -161,7 +161,8 @@ bool mpu6050_selfTest() {
 bool mpu6050_acquire () {
   static int16_t mpu6050_accel_raw_x, mpu6050_accel_raw_y, mpu6050_accel_raw_z;
   static int16_t mpu6050_gyro_raw_x, mpu6050_gyro_raw_y, mpu6050_gyro_raw_z;
-  static int64_t mpu6050_accel_xy, mpu6050_accel_xy2; 
+  static int16_t gravity_z;
+  static int64_t mpu6050_accel_xy2; 
 
   if (MPU6050.testConnection ()) {
     esp32.motion_active = true;
@@ -175,18 +176,24 @@ bool mpu6050_acquire () {
                mpu6050_gyro_raw_x - config_esp32.mpu6050_gyro_offset_x/mpu6050_ratioFactor[mpu6050.gyro_range], mpu6050_gyro_raw_y - config_esp32.mpu6050_gyro_offset_y/mpu6050_ratioFactor[mpu6050.gyro_range], mpu6050_gyro_raw_z - config_esp32.mpu6050_gyro_offset_z/mpu6050_ratioFactor[mpu6050.gyro_range]);
       publish_udp_text (buffer);
     }
-    mpu6050.accel_x = (mpu6050_accel_raw_x - config_esp32.mpu6050_accel_offset_x/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
-    mpu6050.accel_y = (mpu6050_accel_raw_y - config_esp32.mpu6050_accel_offset_y/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
-    mpu6050.accel_z = (mpu6050_accel_raw_z - config_esp32.mpu6050_accel_offset_z/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
+    mpu6050.accel_x = -(mpu6050_accel_raw_x - config_esp32.mpu6050_accel_offset_x/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
+    mpu6050.accel_y = -(mpu6050_accel_raw_y - config_esp32.mpu6050_accel_offset_y/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
+    mpu6050.accel_z = -(mpu6050_accel_raw_z - config_esp32.mpu6050_accel_offset_z/mpu6050_ratioFactor[mpu6050.accel_range])*config_esp32.mpu6050_accel_sensitivity*mpu6050_ratioFactor[mpu6050.accel_range]/10000; // [cm/s2]
     mpu6050.gyro_x = 1000*(mpu6050_gyro_raw_x - config_esp32.mpu6050_gyro_offset_x)/mpu6050_gyro_scaleFactor[mpu6050.gyro_range]; // [cdeg/s]
     mpu6050.gyro_y = 1000*(mpu6050_gyro_raw_y - config_esp32.mpu6050_gyro_offset_y)/mpu6050_gyro_scaleFactor[mpu6050.gyro_range]; // [cdeg/s]
     mpu6050.gyro_z = 1000*(mpu6050_gyro_raw_z - config_esp32.mpu6050_gyro_offset_z)/mpu6050_gyro_scaleFactor[mpu6050.gyro_range]; // [cdeg/s]
     mpu6050_accel_xy2 = mpu6050.accel_x*mpu6050.accel_x + mpu6050.accel_y*mpu6050.accel_y;
-    mpu6050_accel_xy = sqrt(mpu6050_accel_xy2);
-    mpu6050.g = uint16_t(1000*sqrt(float(mpu6050_accel_xy2 + mpu6050.accel_z*mpu6050.accel_z))/float(gravity_constant)); // [mG]
-    mpu6050.tilt = int16_t((18000.0/M_PI)*acos(1-float(mpu6050_accel_xy2)/float(gravity_constant*gravity_constant))); // [cdeg]
-    mpu6050.a = int16_t(float(mpu6050.accel_z)-float(gravity_constant)*cos(M_PI/18000.0*float(mpu6050.tilt))); // [cm/s2]
+    mpu6050.g = uint16_t (1000*sqrt(float(mpu6050_accel_xy2 + mpu6050.accel_z*mpu6050.accel_z))/float(gravity_constant)); // [mG]
+    if (esp32.state == STATE_THRUST) {
+      gravity_z = - int16_t (sqrt (max((int64_t)0, gravity_constant*gravity_constant - mpu6050_accel_xy2))); // [cm/s2]      
+    }
+    else {
+      gravity_z = sign (mpu6050.accel_z) * int16_t (sqrt (max((int64_t)0, gravity_constant*gravity_constant - mpu6050_accel_xy2))); // [cm/s2]
+    }
+    mpu6050.tilt = int16_t ((18000.0/M_PI)*acos(min(float(1.0), max(float(-1.0), -float(gravity_z)/float(gravity_constant))))); // /cdeg]
+    mpu6050.a = mpu6050.accel_z - gravity_z; // [cm/s2]
     mpu6050.rpm = mpu6050.gyro_z/6; // [crpm]
+    Serial.println (String("DEBUG: ") + mpu6050.accel_z + " " + gravity_z + " " + String(float(gravity_constant*gravity_constant - mpu6050_accel_xy2)) + " " + String(-float(gravity_z)/float(gravity_constant)));
     if (esp32.opsmode == MODE_CHECKOUT) {
       mpu6050_zero_gyro (mpu6050_gyro_raw_x, mpu6050_gyro_raw_y, mpu6050_gyro_raw_z);
       if (mpu6050.g > 950 and mpu6050.g < 1050) {
@@ -197,22 +204,30 @@ bool mpu6050_acquire () {
       }
     }
     else {
-      if (mpu6050.g < 950) {
-        if (esp32.opsmode != MODE_FREEFALL) {
+      if (mpu6050.g < 100) {
+        if (esp32.state != STATE_FREEFALL) { // TODO: determine appropriate limits
           publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of free-fall detected");
-          esp32.opsmode = MODE_FREEFALL;
+          esp32.state = STATE_FREEFALL;
         }
       }
       else if (950 < mpu6050.g and mpu6050.g < 1050) { // TODO: determine appropriate limits
-        if (esp32.opsmode != MODE_STATIC) {
+        if (esp32.state != STATE_STATIC) {
           publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Static rocket detected");
-          esp32.opsmode = MODE_STATIC;
+          esp32.state = STATE_STATIC;
         }
       }
       else {
-        if (esp32.opsmode != MODE_THRUST) {
-          publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of thrust detected");
-          esp32.opsmode = MODE_THRUST;
+        if (esp32.separation_sts) {
+          if (esp32.state != STATE_PARACHUTE) {
+            publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of parachute descent detected");
+            esp32.state = STATE_PARACHUTE;
+          }
+        }
+        else {
+          if (esp32.state != STATE_THRUST) {
+            publish_event (STS_ESP32, SS_MPU6050, EVENT_INFO, "Start of thrust detected");
+            esp32.state = STATE_THRUST;
+          }
         }
       }
     }
