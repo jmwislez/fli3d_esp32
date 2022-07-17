@@ -20,7 +20,7 @@ const int16_t mpu6050_accel_scaleFactor[4] = { 16384, 8192, 4096, 2048 };
 const int16_t mpu6050_gyro_scaleFactor[4] = { 1310, 655, 328, 164 }; // multiplied by 10 to allow for int calculations
 const int8_t  mpu6050_ratioFactor[4] = { 1, 2, 4, 8 };
 
-MPU6050 MPU6050;
+MPU6050 mpu6050;
 
 bool motion_setup () {
   return (mpu6050_setup());
@@ -36,28 +36,28 @@ bool mpu6050_setup () {
   }
   // Do self-test
   mpu6050_selfTest (); 
-  MPU6050.reset();
+  mpu6050.reset();
   delay(500);
   // Configure the MPU6050 for use
-  MPU6050.setI2CBypassEnabled (true);
+  mpu6050.setI2CBypassEnabled (true);
   delay (200);
-  MPU6050.setI2CMasterModeEnabled(false);
+  mpu6050.setI2CMasterModeEnabled(false);
   delay (200);
-  MPU6050.setClockSource(MPU6050_CLOCK_PLL_XGYRO);
+  mpu6050.setClockSource(MPU6050_CLOCK_PLL_XGYRO);
   delay (200);
-  MPU6050.setSleepEnabled(false);
+  mpu6050.setSleepEnabled(false);
   delay (200);
   motion_set_samplerate (config_esp32.motion_rate);
   delay (200);
-  MPU6050.setFullScaleGyroRange(mpu6050.gyro_range);
+  mpu6050.setFullScaleGyroRange(mpu6050.gyro_range);
   delay (200);
-  MPU6050.setFullScaleAccelRange(mpu6050.accel_range);
+  mpu6050.setFullScaleAccelRange(mpu6050.accel_range);
   delay (200);
-  MPU6050.setXAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
+  mpu6050.setXAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
   delay (200);
-  MPU6050.setYAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
+  mpu6050.setYAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
   delay (200);
-  MPU6050.setZAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
+  mpu6050.setZAccelOffset(0); // TODO: after fully understanding MPU6050, use this to set offset (likely allows use of full range)
   delay (200);
   publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Initialized MPU6050 accelerometer/gyroscope sensor");
   return true;
@@ -87,22 +87,22 @@ void motion_set_samplerate (uint8_t rate) { // TODO: rate is limited to 255, whi
   else {
     dlpf_bw = MPU6050_DLPF_BW_256;
   } 
-  MPU6050.setRate((uint8_t)((1000 - config_esp32.motion_rate) / config_esp32.motion_rate)); // TODO: is it meaningful to set the rate in case of polling?
-  MPU6050.setDLPFMode(dlpf_bw);
+  mpu6050.setRate((uint8_t)((1000 - config_esp32.motion_rate) / config_esp32.motion_rate)); // TODO: is it meaningful to set the rate in case of polling?
+  mpu6050.setDLPFMode(dlpf_bw);
 }
 
 void mpu6050_set_accel_range (uint8_t accel_range) {
-  MPU6050.setFullScaleAccelRange(accel_range);  
-  mpu6050.accel_range = MPU6050.getFullScaleAccelRange();
+  mpu6050.setFullScaleAccelRange(accel_range);  
+  mpu6050.accel_range = mpu6050.getFullScaleAccelRange();
 }
 
 void mpu6050_set_gyro_range (uint8_t gyro_range) {
-  MPU6050.setFullScaleGyroRange(gyro_range);
-  mpu6050.gyro_range = MPU6050.getFullScaleGyroRange();
+  mpu6050.setFullScaleGyroRange(gyro_range);
+  mpu6050.gyro_range = mpu6050.getFullScaleGyroRange();
 }
 
 bool mpu6050_testConnection () {
-  if (MPU6050.testConnection()) {
+  if (mpu6050.testConnection()) {
     publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Found MPU6050 6DOF motion sensor");
     return true;
   }
@@ -164,11 +164,11 @@ bool mpu6050_acquire () {
   static int16_t gravity_z;
   static int64_t mpu6050_accel_xy2; 
 
-  if (MPU6050.testConnection ()) {
+  if (mpu6050.testConnection ()) {
     esp32.motion_active = true;
     radio.motion_active = true;
     mpu6050.millis = millis();
-    MPU6050.getMotion6(&mpu6050_accel_raw_z, &mpu6050_accel_raw_x, &mpu6050_accel_raw_y, &mpu6050_gyro_raw_z, &mpu6050_gyro_raw_x, &mpu6050_gyro_raw_y);  // axes changed for rocket orientation: x_sensor=z_rocket, y_sensor=x_rocket, z_sensor=y_rocket 
+    mpu6050.getMotion6(&mpu6050_accel_raw_z, &mpu6050_accel_raw_x, &mpu6050_accel_raw_y, &mpu6050_gyro_raw_z, &mpu6050_gyro_raw_x, &mpu6050_gyro_raw_y);  // axes changed for rocket orientation: x_sensor=z_rocket, y_sensor=x_rocket, z_sensor=y_rocket 
     if (config_esp32.motion_udp_raw_enable) {
       sprintf (buffer, "%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d", mpu6050_accel_raw_x, mpu6050_accel_raw_y, mpu6050_accel_raw_z, 
                mpu6050_accel_raw_x - config_esp32.mpu6050_accel_offset_x/mpu6050_ratioFactor[mpu6050.accel_range], mpu6050_accel_raw_y - config_esp32.mpu6050_accel_offset_y/mpu6050_ratioFactor[mpu6050.accel_range], mpu6050_accel_raw_z - config_esp32.mpu6050_accel_offset_z/mpu6050_ratioFactor[mpu6050.accel_range],
@@ -339,10 +339,10 @@ void mpu6050_printConfig () {
   uint8_t FullScaleAccelRange[4] = {2, 4, 8, 16};
   Serial.println ("===== MPU6050 status =======================================");
   Serial.print ("Rate:                         ");
-  Serial.print (1000/(1+MPU6050.getRate()));
+  Serial.print (1000/(1+mpu6050.getRate()));
   Serial.println (" Hz");
   Serial.print ("DLFPMode:                     ");
-  switch (MPU6050.getDLPFMode()) {
+  switch (mpu6050.getDLPFMode()) {
     case 0x00: Serial.println ("MPU6050_DLPF_BW_256"); break;
     case 0x01: Serial.println ("MPU6050_DLPF_BW_188"); break;
     case 0x02: Serial.println ("MPU6050_DLPF_BW_98"); break;
@@ -352,13 +352,13 @@ void mpu6050_printConfig () {
     case 0x06: Serial.println ("MPU6050_DLPF_BW_5"); break;
   }
   Serial.print ("FullScaleGyroRange:           +/- ");
-  Serial.print (FullScaleGyroRange[MPU6050.getFullScaleGyroRange()]);
+  Serial.print (FullScaleGyroRange[mpu6050.getFullScaleGyroRange()]);
   Serial.println (" deg/s");
   Serial.print ("FullScaleAccelRange:          +/- ");
-  Serial.print (FullScaleAccelRange[MPU6050.getFullScaleAccelRange()]);
+  Serial.print (FullScaleAccelRange[mpu6050.getFullScaleAccelRange()]);
   Serial.println (" g");
   Serial.print ("DHPFMode:                     ");
-  switch (MPU6050.getDHPFMode()) {
+  switch (mpu6050.getDHPFMode()) {
     case 0x00: Serial.println ("MPU6050_DHPF_RESET"); break;
     case 0x01: Serial.println ("MPU6050_DHPF_5"); break;
     case 0x02: Serial.println ("MPU6050_DHPF_2P5"); break;
@@ -367,107 +367,107 @@ void mpu6050_printConfig () {
     case 0x07: Serial.println ("MPU6050_DHPF_HOLD"); break;
   }
   Serial.print ("FreefallDetectionThreshold:   ");
-  Serial.println (MPU6050.getFreefallDetectionThreshold());
+  Serial.println (mpu6050.getFreefallDetectionThreshold());
   Serial.print ("FreefallDetectionDuration:    ");
-  Serial.println (MPU6050.getFreefallDetectionDuration());
+  Serial.println (mpu6050.getFreefallDetectionDuration());
   Serial.print ("MotionDetectionThreshold:     ");
-  Serial.println (MPU6050.getMotionDetectionThreshold());
+  Serial.println (mpu6050.getMotionDetectionThreshold());
   Serial.print ("MotionDetectionDuration:      ");
-  Serial.println (MPU6050.getMotionDetectionDuration());
+  Serial.println (mpu6050.getMotionDetectionDuration());
   Serial.print ("ZeroMotionDetectionThreshold: ");
-  Serial.println (MPU6050.getZeroMotionDetectionThreshold());
+  Serial.println (mpu6050.getZeroMotionDetectionThreshold());
   Serial.print ("ZeroMotionDetectionDuration:  ");
-  Serial.println (MPU6050.getZeroMotionDetectionDuration());
+  Serial.println (mpu6050.getZeroMotionDetectionDuration());
   Serial.print ("TempFIFOEnabled:              ");
-  Serial.println (MPU6050.getTempFIFOEnabled());
+  Serial.println (mpu6050.getTempFIFOEnabled());
   Serial.print ("XGyroFIFOEnabled:             ");
-  Serial.println (MPU6050.getXGyroFIFOEnabled());
+  Serial.println (mpu6050.getXGyroFIFOEnabled());
   Serial.print ("YGyroFIFOEnabled:             ");
-  Serial.println (MPU6050.getYGyroFIFOEnabled());
+  Serial.println (mpu6050.getYGyroFIFOEnabled());
   Serial.print ("ZGyroFIFOEnabled:             ");
-  Serial.println (MPU6050.getZGyroFIFOEnabled());
+  Serial.println (mpu6050.getZGyroFIFOEnabled());
   Serial.print ("AccelFIFOEnabled:             ");
-  Serial.println (MPU6050.getAccelFIFOEnabled());
+  Serial.println (mpu6050.getAccelFIFOEnabled());
   Serial.print ("MasterClockSpeed:             ");
-  Serial.println (MPU6050.getMasterClockSpeed());
+  Serial.println (mpu6050.getMasterClockSpeed());
   Serial.print ("PassthroughStatus:            ");
-  Serial.println (MPU6050.getPassthroughStatus());
+  Serial.println (mpu6050.getPassthroughStatus());
   Serial.print ("InterruptMode:                ");
-  Serial.println (MPU6050.getInterruptMode());
+  Serial.println (mpu6050.getInterruptMode());
   Serial.print ("InterruptDrive:               ");
-  Serial.println (MPU6050.getInterruptDrive());
+  Serial.println (mpu6050.getInterruptDrive());
   Serial.print ("InterruptLatch:               ");
-  Serial.println (MPU6050.getInterruptLatch());
+  Serial.println (mpu6050.getInterruptLatch());
   Serial.print ("InterruptLatchClear:          ");
-  Serial.println (MPU6050.getInterruptLatchClear());
+  Serial.println (mpu6050.getInterruptLatchClear());
   Serial.print ("I2CBypassEnabled:             ");
-  Serial.println (MPU6050.getI2CBypassEnabled());
+  Serial.println (mpu6050.getI2CBypassEnabled());
   Serial.print ("ClockOutputEnabled:           ");
-  Serial.println (MPU6050.getClockOutputEnabled());
+  Serial.println (mpu6050.getClockOutputEnabled());
   Serial.print ("IntEnabled:                   ");
-  Serial.println (MPU6050.getIntEnabled());
+  Serial.println (mpu6050.getIntEnabled());
   Serial.print ("IntFreefallEnabled:           ");
-  Serial.println (MPU6050.getIntFreefallEnabled());
+  Serial.println (mpu6050.getIntFreefallEnabled());
   Serial.print ("IntMotionEnabled:             ");
-  Serial.println (MPU6050.getIntMotionEnabled());
+  Serial.println (mpu6050.getIntMotionEnabled());
   Serial.print ("IntZeroMotionEnabled:         ");
-  Serial.println (MPU6050.getIntZeroMotionEnabled());
+  Serial.println (mpu6050.getIntZeroMotionEnabled());
   Serial.print ("IntFIFOBufferOverflowEnabled: ");
-  Serial.println (MPU6050.getIntFIFOBufferOverflowEnabled());
+  Serial.println (mpu6050.getIntFIFOBufferOverflowEnabled());
   Serial.print ("IntI2CMasterEnabled:          ");
-  Serial.println (MPU6050.getIntI2CMasterEnabled());
+  Serial.println (mpu6050.getIntI2CMasterEnabled());
   Serial.print ("IntDataReadyEnabled:          ");
-  Serial.println (MPU6050.getIntDataReadyEnabled());
+  Serial.println (mpu6050.getIntDataReadyEnabled());
   Serial.print ("FIFOEnabled:                  ");
-  Serial.println (MPU6050.getFIFOEnabled());
+  Serial.println (mpu6050.getFIFOEnabled());
   Serial.print ("I2CMasterModeEnabled:         ");
-  Serial.println (MPU6050.getI2CMasterModeEnabled());
+  Serial.println (mpu6050.getI2CMasterModeEnabled());
   Serial.print ("SleepEnabled:                 ");
-  Serial.println (MPU6050.getSleepEnabled());
+  Serial.println (mpu6050.getSleepEnabled());
   Serial.print ("WakeCycleEnabled:             ");
-  Serial.println (MPU6050.getWakeCycleEnabled());
+  Serial.println (mpu6050.getWakeCycleEnabled());
   Serial.print ("TempSensorEnabled:            ");
-  Serial.println (MPU6050.getTempSensorEnabled());
+  Serial.println (mpu6050.getTempSensorEnabled());
   Serial.print ("ClockSource:                  ");
-  Serial.println (MPU6050.getClockSource());
+  Serial.println (mpu6050.getClockSource());
   Serial.print ("DeviceID:                     ");
-  Serial.println (MPU6050.getDeviceID());
+  Serial.println (mpu6050.getDeviceID());
   Serial.print ("OTPBankValid:                 ");
-  Serial.println (MPU6050.getOTPBankValid());
+  Serial.println (mpu6050.getOTPBankValid());
   Serial.print ("X_gyro_offsetTC:              ");
-  Serial.println (MPU6050.getXGyroOffsetTC());
+  Serial.println (mpu6050.getXGyroOffsetTC());
   Serial.print ("Y_gyro_offsetTC:              ");
-  Serial.println (MPU6050.getYGyroOffsetTC());
+  Serial.println (mpu6050.getYGyroOffsetTC());
   Serial.print ("Z_gyro_offsetTC:              ");
-  Serial.println (MPU6050.getZGyroOffsetTC());
+  Serial.println (mpu6050.getZGyroOffsetTC());
   Serial.print ("XFineGain:                    ");
-  Serial.println (MPU6050.getXFineGain());
+  Serial.println (mpu6050.getXFineGain());
   Serial.print ("YFineGain:                    ");
-  Serial.println (MPU6050.getYFineGain());
+  Serial.println (mpu6050.getYFineGain());
   Serial.print ("ZFineGain:                    ");
-  Serial.println (MPU6050.getZFineGain());
+  Serial.println (mpu6050.getZFineGain());
   Serial.print ("X_accel_offset:               ");
-  Serial.println (MPU6050.getXAccelOffset());
+  Serial.println (mpu6050.getXAccelOffset());
   Serial.print ("Y_accel_offset:               ");
-  Serial.println (MPU6050.getYAccelOffset());
+  Serial.println (mpu6050.getYAccelOffset());
   Serial.print ("Z_accel_offset:               ");
-  Serial.println (MPU6050.getZAccelOffset());
+  Serial.println (mpu6050.getZAccelOffset());
   Serial.print ("X_gyro_offset:                ");
-  Serial.println (MPU6050.getXGyroOffset());
+  Serial.println (mpu6050.getXGyroOffset());
   Serial.print ("Y_gyro_offset:                ");
-  Serial.println (MPU6050.getYGyroOffset());
+  Serial.println (mpu6050.getYGyroOffset());
   Serial.print ("Z_gyro_offset:                ");
-  Serial.println (MPU6050.getZGyroOffset());
+  Serial.println (mpu6050.getZGyroOffset());
   Serial.print ("IntPLLReadyEnabled:           ");
-  Serial.println (MPU6050.getIntPLLReadyEnabled());
+  Serial.println (mpu6050.getIntPLLReadyEnabled());
   Serial.print ("IntDMPEnabled:                ");
-  Serial.println (MPU6050.getIntDMPEnabled());
+  Serial.println (mpu6050.getIntDMPEnabled());
   Serial.print ("DMPEnabled:                   ");
-  Serial.println (MPU6050.getDMPEnabled());
+  Serial.println (mpu6050.getDMPEnabled());
   Serial.print ("DMPConfig1:                   ");
-  Serial.println (MPU6050.getDMPConfig1());
+  Serial.println (mpu6050.getDMPConfig1());
   Serial.print ("DMPConfig2:                   ");
-  Serial.println (MPU6050.getDMPConfig2());
+  Serial.println (mpu6050.getDMPConfig2());
   Serial.println ("============================================================");
 }
 
