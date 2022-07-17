@@ -193,10 +193,10 @@ bool mpu6050_acquire () {
     mpu6050.tilt = int16_t ((18000.0/M_PI)*acos(min(float(1.0), max(float(-1.0), -float(gravity_z)/float(gravity_constant))))); // /cdeg]
     mpu6050.a = mpu6050.accel_z - gravity_z; // [cm/s2]
     mpu6050.rpm = mpu6050.gyro_z/6; // [crpm]
-    Serial.println (String("DEBUG: ") + mpu6050.accel_z + " " + gravity_z + " " + String(float(gravity_constant*gravity_constant - mpu6050_accel_xy2)) + " " + String(-float(gravity_z)/float(gravity_constant)));
+    Serial.println (String("DEBUG: ") + mpu6050.accel_z + " " + gravity_z);
     if (esp32.opsmode == MODE_CHECKOUT) {
       mpu6050_zero_gyro (mpu6050_gyro_raw_x, mpu6050_gyro_raw_y, mpu6050_gyro_raw_z);
-      if (mpu6050.g > 950 and mpu6050.g < 1050) {
+      if (mpu6050.g > 950 and mpu6050.g < 1050) { // TODO: determine appropriate limits
         mpu6050.accel_valid = true;  
       }
       else {

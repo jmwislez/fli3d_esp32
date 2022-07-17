@@ -2,6 +2,8 @@
  * Fli3d - TM acquisition timer functionality 
  */
 
+extern bool sync_fs_ccsds ();
+ 
 void timer_setup () {
     var_timer.next_second = 1000*(millis()/1000) + 1000;
     var_timer.radio_interval = (1000 / config_esp32.radio_rate);
@@ -16,6 +18,7 @@ void timer_loop () {
   if (timer.millis >= var_timer.next_second) {
     publish_packet ((ccsds_t*)&esp32);
     publish_packet ((ccsds_t*)&timer);
+    sync_fs_ccsds ();
     var_timer.next_second += 1000;
   }
   if (esp32.opsmode != MODE_DONE) {
