@@ -21,8 +21,8 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.3 (20201112)"
-#define PLATFORM_ESP32 // tell which platform we are one 
+#define SW_VERSION "Fli3d ESP32 v0.9.4 (20220721)"
+#define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
 #define RADIO
@@ -30,7 +30,7 @@
 #define MOTION
 #define GPS
 #define ESP32CAM
-#define DEBUG_OVER_SERIAL // override keep-alive mechanism over serial when ESP32CAM is not present
+#define DEBUG_OVER_SERIAL // overrides keep-alive mechanism over serial when ESP32CAM is not present
 
 // Libraries
 #include "fli3d.h"
@@ -41,16 +41,23 @@ bool reset_gps_timer, separation_sts_changed;
 extern char buffer[JSON_MAX_SIZE];
 
 void setup() {
+  // Initialize serial connection to ESP32CAM (or for debug)
   Serial.begin (SerialBaud);
   Serial.println ();
   Serial.setDebugOutput (true);
+
+  // Load default (hardcoded) WiFi and other settings, as fallback
   load_default_config ();
   ccsds_init ();
-  if (config_esp32.fs_enable) {
-    esp32.fs_enabled = fs_setup ();
-    fs_load_settings ();
-    fs_load_config (config_this->config_file);
-    fs_load_routing (config_this->routing_file);
+ 
+  // If FS enabled and initialization successful, load WiFi and other settings from configuration files on FS (accessible over FTP)
+  if (config_this->fs_enable) {
+    tm_this->fs_enabled = fs_setup ();
+    if (tm_this->fs_enabled = fs_setup ()) {
+      fs_load_settings (); 
+      fs_load_config (config_this->config_file); // WiFi and other settings
+      fs_load_routing (config_this->routing_file); // TM routing settings
+    }
   }
   #ifdef DEBUG_OVER_SERIAL  
   config_this->debug_over_serial = true;
@@ -58,46 +65,54 @@ void setup() {
   #endif // DEBUG_OVER_SERIAL
   sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
-  publish_packet ((ccsds_t*)&esp32);  // #1
+  publish_packet ((ccsds_t*)tm_this);  // #1
+
+  // If WiFi enabled (AP/client), initialize
   if (config_this->wifi_enable) {
     wifi_setup ();
-    publish_packet ((ccsds_t*)&esp32);  // #2
+    publish_packet ((ccsds_t*)tm_this);  // #2
   } 
 
+  // Initialise subsystems
   #ifdef ESP32CAM
-  if (config_esp32.camera_enable) {
+  if (config_esp32.camera_enable) { 
     esp32.camera_enabled = true;
   }
   #endif // ESP32CAM 
   #ifdef GPS
   if ((esp32.gps_enabled = gps_setup ())) {
-    publish_packet ((ccsds_t*)&esp32);  // #3
+    publish_packet ((ccsds_t*)tm_this);  // #3
   }
   #endif // GPS
   #ifdef MOTION
   if ((esp32.motion_enabled = motion_setup ())) {
-    //mpu6050_calibrate ();    // to be done offline on loose sensor, then put calibration values in configuration file
+    //mpu6050_calibrate ();    // TODO: to be done offline on loose sensor, then put calibration values in configuration file
     mpu6050_checkConfig (); 
     //mpu6050_printConfig (); 
-    publish_packet ((ccsds_t*)&esp32);  
+    publish_packet ((ccsds_t*)tm_this);  // #4
   }
   #endif // MOTION
   #ifdef PRESSURE
   if ((esp32.pressure_enabled = pressure_setup ())) { // needs to be after MOTION
     bmp280_checkConfig ();
-    publish_packet ((ccsds_t*)&esp32);  
+    publish_packet ((ccsds_t*)tm_this);  // #5
   }
   #endif // PRESSURE
   #ifdef RADIO
   if (config_esp32.radio_enable) {
     esp32.radio_enabled = radio_setup ();
-    publish_packet ((ccsds_t*)&esp32);  
+    publish_packet ((ccsds_t*)tm_this);  // #6
   }
   #endif // RADIO
   separation_setup ();
+
+  // Initialize FTP server
   if (esp32.fs_enabled) {
     ftp_setup ();
+    publish_packet ((ccsds_t*)tm_this);  // #7
   }
+
+  // Initialize Timer and close initialisation
   esp32.opsmode = MODE_CHECKOUT;
   timer_setup ();
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
@@ -126,7 +141,7 @@ void loop() {
       esp32.pressure_enabled = pressure_setup ();
     }
     var_timer.do_pressure = false;
-    timer.pressure_duration += millis() - start_millis;
+    timer_esp32.pressure_duration += millis() - start_millis;
   } 
   #endif // PRESSURE
 
@@ -142,7 +157,7 @@ void loop() {
       esp32.motion_enabled = motion_setup ();
     }
     var_timer.do_motion = false;
-    timer.motion_duration += millis() - start_millis;
+    timer_esp32.motion_duration += millis() - start_millis;
   } 
   #endif // MOTION
 
@@ -153,7 +168,7 @@ void loop() {
       start_millis = millis ();
       publish_packet ((ccsds_t*)&radio);
       var_timer.do_radio = false;
-      timer.radio_duration += millis() - start_millis;
+      timer_esp32.radio_duration += millis() - start_millis;
     }
   }
   #endif // RADIO
@@ -163,7 +178,7 @@ void loop() {
   if (serial_check ()) {
     start_millis = millis ();
     serial_parse ();
-    timer.esp32cam_duration += millis() - start_millis;
+    timer_esp32.esp32cam_duration += millis() - start_millis;
   }
   #endif // ESP32CAM
   
@@ -186,13 +201,13 @@ void loop() {
         var_timer.do_gps = false;
       }
     }
-    timer.gps_duration += millis() - start_millis;
+    timer_esp32.gps_duration += millis() - start_millis;
   }
   #endif // GPS
   
   // Serial keepalive mechanism
   start_millis = millis ();    
-  if (!config_this->debug_over_serial and timer.millis - var_timer.last_serial_out_millis > KEEPALIVE_INTERVAL) {
+  if (!config_this->debug_over_serial and timer_esp32.millis - var_timer.last_serial_out_millis > KEEPALIVE_INTERVAL) {
     if (tm_this->serial_connected) {
       Serial.println ("O");
     }
@@ -205,45 +220,45 @@ void loop() {
     tm_this->serial_connected = false;
     tm_this->warn_serial_connloss = true;
   }
-  timer.serial_duration += millis() - start_millis;
+  timer_esp32.serial_duration += millis() - start_millis;
 
   // OTA check
-  if (config_esp32.ota_enable) {
+  if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {
     start_millis = millis ();    
     ArduinoOTA.handle();
     esp32.ota_enabled = true;
-    timer.ota_duration += millis() - start_millis;
+    timer_esp32.ota_duration += millis() - start_millis;
   }
   
   // FTP check
-  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) {
+  if ((esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) and tm_this->fs_ftp_enabled) {
     // FTP server is active when Fli3d is being prepared or done
     start_millis = millis ();    
     ftp_check ();
-    timer.ftp_duration += millis() - start_millis;
+    timer_esp32.ftp_duration += millis() - start_millis;
   }
 
   // TC check
   #ifndef ASYNCUDP
-  if (esp32.state == STATE_STATIC) {
+  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) {
     start_millis = millis (); 
     // TC are possible when Fli3d is not flying
     yamcs_tc_check ();
-    timer.tc_duration += millis() - start_millis;
+    timer_esp32.tc_duration += millis() - start_millis;
   }
   #endif
 
   // wifi check
-  if (var_timer.do_wifi and esp32.wifi_enabled) {
+  if (var_timer.do_wifi and tm_this->wifi_enabled) {
     start_millis = millis ();
     wifi_check ();
-    timer.wifi_duration += millis() - start_millis;
+    timer_esp32.wifi_duration += millis() - start_millis;
   }
 
-  // activity timer management
-  if (var_timer.do_ntp and esp32.wifi_enabled) {
+  // NTP check
+  if (esp32.opsmode == MODE_CHECKOUT and var_timer.do_ntp and esp32.wifi_enabled) {
     start_millis = millis ();
     time_check ();
-    timer.wifi_duration += millis() - start_millis;
+    timer_esp32.wifi_duration += millis() - start_millis;
   }
 }
