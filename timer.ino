@@ -18,7 +18,7 @@ void timer_loop () {
   if (timer_esp32.millis >= var_timer.next_second) {
     publish_packet ((ccsds_t*)&esp32);
     publish_packet ((ccsds_t*)&timer_esp32);
-    sync_fs_ccsds ();
+    sync_file_ccsds ();
     var_timer.next_second += 1000;
   }
   if (esp32.opsmode != MODE_DONE) {

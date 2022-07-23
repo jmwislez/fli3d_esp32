@@ -8,20 +8,10 @@
  *  - separation wire (GND is mated, open is unmated)
  *  - WL102-341 radio transmitter
  *  
- *  Functionality:
- *  - Configure and acquire data from accelerometer/gyroscope sensor 
- *  - Configure and acquire data from pressure/temperature sensor 
- *  - Configure and acquire data from gps receiver 
- *  - Acquire status information on separation status 
- *  - Acquire status information and commands from ESP32CAM 
- *  - Provide status information of all subsystems to ESP32CAM 
- *  - Compile telemetry packets 
- *  - Transmit telemetry packets over 433.92 MHz radio transmitter and over wifi
- *  
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.4 (20220721)"
+#define SW_VERSION "Fli3d ESP32 v0.9.5 (20220723)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
@@ -45,26 +35,33 @@ void setup() {
   Serial.begin (SerialBaud);
   Serial.println ();
   Serial.setDebugOutput (true);
-
+  
+  // Boot after ESP32CAM is ready to receive
+  delay (2000);
+   
   // Load default (hardcoded) WiFi and other settings, as fallback
   load_default_config ();
   ccsds_init ();
  
   // If FS enabled and initialization successful, load WiFi and other settings from configuration files on FS (accessible over FTP)
+  sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   if (config_this->fs_enable) {
-    tm_this->fs_enabled = fs_setup ();
     if (tm_this->fs_enabled = fs_setup ()) {
-      fs_load_settings (); 
-      fs_load_config (config_this->config_file); // WiFi and other settings
-      fs_load_routing (config_this->routing_file); // TM routing settings
+      publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
+      publish_packet ((ccsds_t*)tm_this);  // #0
+      if (file_load_settings (FS_LITTLEFS)) {
+        file_load_config (FS_LITTLEFS, config_this->config_file); // WiFi and other settings
+        file_load_routing (FS_LITTLEFS, config_this->routing_file); // TM routing settings
+      }
     }
+  }
+  else {
+    publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
   }
   #ifdef DEBUG_OVER_SERIAL  
   config_this->debug_over_serial = true;
   tm_this->serial_connected = true;
   #endif // DEBUG_OVER_SERIAL
-  sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
-  publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
   publish_packet ((ccsds_t*)tm_this);  // #1
 
   // If WiFi enabled (AP/client), initialize
@@ -107,8 +104,8 @@ void setup() {
   separation_setup ();
 
   // Initialize FTP server
-  if (esp32.fs_enabled) {
-    ftp_setup ();
+  if (config_esp32.ftp_enable and esp32.fs_enabled) {
+    esp32.ftp_enabled = ftp_setup ();
     publish_packet ((ccsds_t*)tm_this);  // #7
   }
 
@@ -231,10 +228,10 @@ void loop() {
   }
   
   // FTP check
-  if ((esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) and tm_this->fs_ftp_enabled) {
+  if ((esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) and tm_this->ftp_enabled) {
     // FTP server is active when Fli3d is being prepared or done
     start_millis = millis ();    
-    ftp_check ();
+    ftp_check (config_this->buffer_fs);
     timer_esp32.ftp_duration += millis() - start_millis;
   }
 
