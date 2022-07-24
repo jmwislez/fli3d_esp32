@@ -21,7 +21,7 @@ const int32_t longitude_deg_to_m = M_PI*12742000*cos(51*M_PI/180)/360;
 static NMEAGPS gps;
 static gps_fix fix;
 
-bool gps_setup () {
+bool gps_setup() {
   Serial.println ("DEBUG: gps_setup");  // TODO: debug info for hang during boot
   const char ubxAirborne[] PROGMEM = { 0x06,0x24,0x24,0x00,0x05,0x00,0x06,0x02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
   const char disableRMC[] PROGMEM = "PUBX,40,RMC,0,0,0,0,0,0";
@@ -110,7 +110,7 @@ void gps_set_samplerate (uint8_t rate) {
 bool gps_connect (uint16_t baud) {
   Serial.println ("DEBUG: gps_connect " + baud);  // TODO: debug info for hang during boot
   SerialGPS.begin(baud, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
-  uint32_t start_probe_millis = millis ();
+  uint32_t start_probe_millis = millis();
   char gps_buffer[255];
   uint8_t gps_buffer_pos = 0;
   while (millis() - start_probe_millis < 2000) {
@@ -138,13 +138,13 @@ bool gps_connect (uint16_t baud) {
   return false;
 }
 
-bool gps_check () {
+bool gps_check() {
   while (gps.available(SerialGPS)) {
     esp32.gps_active = true;
     radio.gps_active = true;
     fix = gps.read();
     if (fix.status) {
-      neo6mv2.millis = millis ();
+      neo6mv2.millis = millis();
       neo6mv2.status = fix.status;
       neo6mv2.satellites = fix.satellites;
       if ((neo6mv2.time_valid = fix.valid.time)) {
@@ -223,7 +223,7 @@ bool neo6mv2_zero_position (int32_t new_latitude, int32_t new_longitude, int32_t
   }
 }
 
-void publish_udp_gps () {
+void publish_udp_gps() {
   static char gps_buffer[80];
   static uint8_t gps_buffer_pos;
   while(SerialGPS.available()) {

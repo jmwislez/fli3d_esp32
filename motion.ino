@@ -22,20 +22,20 @@ const int8_t  mpu6050_ratioFactor[4] = { 1, 2, 4, 8 };
 
 MPU6050 mpu;
 
-bool motion_setup () {
+bool motion_setup() {
   return (mpu6050_setup());
 }
 
-bool mpu6050_setup () {
+bool mpu6050_setup() {
   // Set up I2C bus
   Wire.begin (I2C_SDA_PIN, I2C_SCL_PIN); 
   Wire.setClock (400000);
   // Check if we find a properly responding MPU6050 device
-  if (!mpu6050_testConnection ()) {
+  if (!mpu6050_testConnection()) {
     return false;
   }
   // Do self-test
-  mpu6050_selfTest (); 
+  mpu6050_selfTest(); 
   mpu.reset();
   delay(500);
   // Configure the MPU6050 for use
@@ -101,7 +101,7 @@ void mpu6050_set_gyro_range (uint8_t gyro_range) {
   mpu6050.gyro_range = mpu.getFullScaleGyroRange();
 }
 
-bool mpu6050_testConnection () {
+bool mpu6050_testConnection() {
   if (mpu.testConnection()) {
     publish_event (STS_ESP32, SS_MPU6050, EVENT_INIT, "Found MPU6050 6DOF motion sensor");
     return true;
@@ -158,13 +158,13 @@ bool mpu6050_selfTest() {
   }
 }    
 
-bool mpu6050_acquire () {
+bool mpu6050_acquire() {
   static int16_t mpu6050_accel_raw_x, mpu6050_accel_raw_y, mpu6050_accel_raw_z;
   static int16_t mpu6050_gyro_raw_x, mpu6050_gyro_raw_y, mpu6050_gyro_raw_z;
   static int16_t gravity_z;
   static int64_t mpu6050_accel_xy2; 
 
-  if (mpu.testConnection ()) {
+  if (mpu.testConnection()) {
     esp32.motion_active = true;
     radio.motion_active = true;
     mpu6050.millis = millis();
@@ -271,7 +271,7 @@ void mpu6050_zero_gyro (int16_t new_gyro_x, int16_t new_gyro_y, int16_t new_gyro
   }
 }
 
-bool mpu6050_checkConfig () {
+bool mpu6050_checkConfig() {
   // 0x00 - 0x05: yes
   // 0x06 - 0x0C: yes (offsets)
   // 0x0D - 0x10: no (self-test outputs)
@@ -334,7 +334,7 @@ bool mpu6050_checkMemory (uint8_t start_address, uint8_t end_address, char *hexs
   }
 }
 
-void mpu6050_printConfig () {
+void mpu6050_printConfig() {
   uint16_t FullScaleGyroRange[4] = {250, 500, 1000, 2000};
   uint8_t FullScaleAccelRange[4] = {2, 4, 8, 16};
   Serial.println ("===== MPU6050 status =======================================");

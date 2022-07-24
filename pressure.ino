@@ -87,11 +87,11 @@ struct {
 int32_t t_fine;
 
 
-bool pressure_setup () {
-  return (bmp280_setup ());
+bool pressure_setup() {
+  return (bmp280_setup());
 }
 
-bool bmp280_setup () {  
+bool bmp280_setup() {  
   
   if (!esp32.motion_enabled) {
     publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, "MPU6050 not initialized; configuring MPU6050 I2C pass-through for BMP280");
@@ -104,10 +104,10 @@ bool bmp280_setup () {
   }
 
   // Reset BMP280
-  bmp280_reset ();
+  bmp280_reset();
 
   // Check if we find a properly responding BMP280 device
-  if (bmp280_getDeviceId () == (uint8_t)BMP280_DEVICE_ID) {
+  if (bmp280_getDeviceId() == (uint8_t)BMP280_DEVICE_ID) {
     publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "Found BMP280 barometric pressure sensor");
   }
   else {
@@ -116,7 +116,7 @@ bool bmp280_setup () {
   }
 
   // Load the calibration parameters from the sensor
-  bmp280_getTrimParameters ();
+  bmp280_getTrimParameters();
 
   // Configure BMP280
   uint8_t timeStandby = TIME_STANDBY_05MS; // 000
@@ -149,11 +149,11 @@ bool bmp280_setup () {
   return true;
 }
 
-bool bmp280_check () { 
-  return !bmp280_getMeasuringStatus ();
+bool bmp280_check() { 
+  return !bmp280_getMeasuringStatus();
 }
 
-bool bmp280_acquire () {
+bool bmp280_acquire() {
   static uint8_t bmp280_data[6];
   static int16_t bmp280_old_height;
   static uint32_t bmp280_old_millis;
@@ -161,7 +161,7 @@ bool bmp280_acquire () {
   bmp280_old_height = bmp280.height;
   bmp280_old_millis = bmp280.millis;
   while (!bmp280_check()) { }
-  if (bmp280_getDeviceId () == (uint8_t)BMP280_DEVICE_ID) {
+  if (bmp280_getDeviceId() == (uint8_t)BMP280_DEVICE_ID) {
     bmp280.millis = millis();
     esp32.pressure_active = true;
     radio.pressure_active = true;
@@ -202,7 +202,7 @@ uint32_t bmp280_zero_level (uint32_t new_pressure) {
   }
 }
 
-bool bmp280_checkConfig () {
+bool bmp280_checkConfig() {
   uint8_t data;
   #define config1_len 2
   uint8_t config1_start = 0xF4;
@@ -226,16 +226,16 @@ bool bmp280_checkConfig () {
   }
 }
 
-void bmp280_printConfig () {
+void bmp280_printConfig() {
   Serial.println ("===== BMP280 status ========================================");
   Serial.print ("Mode:             ");
-  switch (bmp280_getMode ()) {
+  switch (bmp280_getMode()) {
     case 0: Serial.println ("SLEEP_MODE"); break;
     case 1: Serial.println ("FORCED_MODE"); break;
     case 3: Serial.println ("NORMAL_MODE"); break;
   }
   Serial.print ("iirFilter:        ");
-  switch (bmp280_getFilter ()) {
+  switch (bmp280_getFilter()) {
     case 0: Serial.println ("IIR_FILTER_OFF"); break;
     case 1: Serial.println ("IIR_FILTER_2"); break;
     case 2: Serial.println ("IIR_FILTER_4"); break;
@@ -243,7 +243,7 @@ void bmp280_printConfig () {
     case 4: Serial.println ("IIR_FILTER_16"); break;
   }
   Serial.print ("tempOversampling: ");
-  switch (bmp280_getTempOversampling ()) {
+  switch (bmp280_getTempOversampling()) {
     case 0: Serial.println ("OVERSAMPLING_SKIP"); break;
     case 1: Serial.println ("OVERSAMPLING_X1"); break;
     case 2: Serial.println ("OVERSAMPLING_X2"); break;
@@ -252,7 +252,7 @@ void bmp280_printConfig () {
     case 5: Serial.println ("OVERSAMPLING_X16"); break;
   }
   Serial.print ("presOversampling: ");
-  switch (bmp280_getPresOversampling ()) {
+  switch (bmp280_getPresOversampling()) {
     case 0: Serial.println ("OVERSAMPLING_SKIP"); break;
     case 1: Serial.println ("OVERSAMPLING_X1"); break;
     case 2: Serial.println ("OVERSAMPLING_X2"); break;
@@ -261,7 +261,7 @@ void bmp280_printConfig () {
     case 5: Serial.println ("OVERSAMPLING_X16"); break;
   }
   Serial.print ("timeStandby:      ");
-  switch (bmp280_getTimeStandby ()) {
+  switch (bmp280_getTimeStandby()) {
     case 0: Serial.println ("TIME_STANDBY_05MS"); break;
     case 1: Serial.println ("TIME_STANDBY_62MS"); break;
     case 2: Serial.println ("TIME_STANDBY_125MS"); break;
@@ -311,7 +311,7 @@ uint32_t bmp280_compensate_P_int64(int32_t adc_P) {
 
 // I/O functions for BMP280
 
-uint8_t bmp280_getTimeStandby () {
+uint8_t bmp280_getTimeStandby() {
   uint8_t bmp280_t_sb;
   I2Cdev::readBits(BMP280_I2C_Address, BMP280_REGISTER_CONFIG, BMP280_T_SB_BIT, BMP280_T_SB_LENGTH, &bmp280_t_sb, 0);
   return (bmp280_t_sb);
@@ -321,7 +321,7 @@ void bmp280_setTimeStandby (uint8_t bmp280_t_sb) {
   I2Cdev::writeBits(BMP280_I2C_Address, BMP280_REGISTER_CONFIG, BMP280_T_SB_BIT, BMP280_T_SB_LENGTH, bmp280_t_sb);
 }
 
-uint8_t bmp280_getFilter () {
+uint8_t bmp280_getFilter() {
   uint8_t bmp280_filter;
   I2Cdev::readBits(BMP280_I2C_Address, BMP280_REGISTER_CONFIG, BMP280_FILTER_BIT, BMP280_FILTER_LENGTH, &bmp280_filter, 0);
   return (bmp280_filter);
@@ -331,7 +331,7 @@ void bmp280_setFilter (uint8_t bmp280_filter) {
   I2Cdev::writeBits(BMP280_I2C_Address, BMP280_REGISTER_CONFIG, BMP280_FILTER_BIT, BMP280_FILTER_LENGTH, bmp280_filter);
 }
 
-uint8_t bmp280_getMode () {
+uint8_t bmp280_getMode() {
   uint8_t bmp280_mode;
   I2Cdev::readBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_MODE_BIT, BMP280_MODE_LENGTH, &bmp280_mode, 0);
   return (bmp280_mode);
@@ -341,7 +341,7 @@ void bmp280_setMode (uint8_t bmp280_mode) {
   I2Cdev::writeBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_MODE_BIT, BMP280_MODE_LENGTH, bmp280_mode);
 }
 
-uint8_t bmp280_getPresOversampling () {
+uint8_t bmp280_getPresOversampling() {
   uint8_t bmp280_osrs_p;
   I2Cdev::readBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_OSRS_P_BIT, BMP280_OSRS_P_LENGTH, &bmp280_osrs_p, 0);
   return (bmp280_osrs_p);
@@ -351,7 +351,7 @@ void bmp280_setPresOversampling (uint8_t bmp280_osrs_p) {
   I2Cdev::writeBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_OSRS_P_BIT, BMP280_OSRS_P_LENGTH, bmp280_osrs_p);
 }
 
-uint8_t bmp280_getTempOversampling () {
+uint8_t bmp280_getTempOversampling() {
   uint8_t bmp280_osrs_t;
   I2Cdev::readBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_OSRS_T_BIT, BMP280_OSRS_T_LENGTH, &bmp280_osrs_t, 0);
   return (bmp280_osrs_t);
@@ -361,28 +361,28 @@ void bmp280_setTempOversampling (uint8_t bmp280_osrs_t) {
   I2Cdev::writeBits(BMP280_I2C_Address, BMP280_REGISTER_CTRL_MEAS, BMP280_OSRS_T_BIT, BMP280_OSRS_T_LENGTH, bmp280_osrs_t);
 }
 
-void bmp280_reset () {
+void bmp280_reset() {
   I2Cdev::writeByte(BMP280_I2C_Address, BMP280_REGISTER_RESET, BMP280_RESET_CODE);
-  while (bmp280_getUpdateStatus ()) { }
+  while (bmp280_getUpdateStatus()) { }
 }
 
-uint8_t bmp280_getDeviceId () {
+uint8_t bmp280_getDeviceId() {
   uint8_t bmp280_device_id = 0;
   I2Cdev::readByte(BMP280_I2C_Address, BMP280_REGISTER_DEVICE_ID, &bmp280_device_id, 0);
   return (bmp280_device_id);
 }
 
-void bmp280_getTrimParameters () {
+void bmp280_getTrimParameters() {
   I2Cdev::readBytes (BMP280_I2C_Address, BMP280_REGISTER_TRIM_PARAMS, sizeof(params), (uint8_t*)&params, 0);  
 }
 
-bool bmp280_getUpdateStatus () {
+bool bmp280_getUpdateStatus() {
   static bool update = false;
   I2Cdev::readBit(BMP280_I2C_Address, BMP280_REGISTER_STATUS, BMP280_UPDATE_BIT, (uint8_t*)&update, 0);
   return (update);
 }
 
-bool bmp280_getMeasuringStatus () {
+bool bmp280_getMeasuringStatus() {
   static bool measuring = false;
   I2Cdev::readBit(BMP280_I2C_Address, BMP280_REGISTER_STATUS, BMP280_MEASURING_BIT, (uint8_t*)&measuring, 0);
   return (measuring);

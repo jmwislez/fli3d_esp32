@@ -2,9 +2,9 @@
  * Fli3d - TM acquisition timer functionality 
  */
 
-extern bool sync_fs_ccsds ();
+extern bool sync_fs_ccsds();
  
-void timer_setup () {
+void timer_setup() {
     var_timer.next_second = 1000*(millis()/1000) + 1000;
     var_timer.radio_interval = (1000 / config_esp32.radio_rate);
     var_timer.pressure_interval = (1000 / config_esp32.pressure_rate);
@@ -12,13 +12,13 @@ void timer_setup () {
     var_timer.gps_interval = (1000 / config_esp32.gps_rate);
 }
 
-void timer_loop () {
+void timer_loop() {
   // data acquisition and publication timer
-  timer_esp32.millis = millis ();
+  timer_esp32.millis = millis();
   if (timer_esp32.millis >= var_timer.next_second) {
     publish_packet ((ccsds_t*)&esp32);
     publish_packet ((ccsds_t*)&timer_esp32);
-    sync_file_ccsds ();
+    sync_file_ccsds();
     var_timer.next_second += 1000;
   }
   if (esp32.opsmode != MODE_DONE) {
@@ -46,7 +46,7 @@ void timer_loop () {
     var_timer.do_wifi = true;
     var_timer.next_wifi_time = timer_esp32.millis + WIFI_CHECK*1000;
   } 
-  if (timer_esp32.millis >= var_timer.next_ntp_time) {
+  if (!tm_this->time_set and timer_esp32.millis >= var_timer.next_ntp_time) {
     var_timer.do_ntp = true;
     var_timer.next_ntp_time = timer_esp32.millis + NTP_CHECK*1000;
   }
