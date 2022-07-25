@@ -22,7 +22,6 @@ static NMEAGPS gps;
 static gps_fix fix;
 
 bool gps_setup() {
-  Serial.println ("DEBUG: gps_setup");  // TODO: debug info for hang during boot
   const char ubxAirborne[] PROGMEM = { 0x06,0x24,0x24,0x00,0x05,0x00,0x06,0x02,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
   const char disableRMC[] PROGMEM = "PUBX,40,RMC,0,0,0,0,0,0";
   const char disableGLL[] PROGMEM = "PUBX,40,GLL,0,0,0,0,0,0";
@@ -108,7 +107,6 @@ void gps_set_samplerate (uint8_t rate) {
 }
 
 bool gps_connect (uint16_t baud) {
-  Serial.println ("DEBUG: gps_connect " + baud);  // TODO: debug info for hang during boot
   SerialGPS.begin(baud, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   uint32_t start_probe_millis = millis();
   char gps_buffer[255];
@@ -116,8 +114,6 @@ bool gps_connect (uint16_t baud) {
   while (millis() - start_probe_millis < 2000) {
     while (SerialGPS.available()) {
       gps_buffer[gps_buffer_pos] = SerialGPS.read();
-      Serial.print (gps_buffer[gps_buffer_pos]); // TODO: DEBUG
-      Serial.print ("."); // TODO: DEBUG
       if (gps_buffer[gps_buffer_pos] == '\n') {
         // proper data received
         sprintf (buffer, "Connected to GPS at %d baud", baud);

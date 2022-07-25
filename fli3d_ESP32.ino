@@ -11,7 +11,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.6 (20220724)"
+#define SW_VERSION "Fli3d ESP32 v0.9.7 (20220725)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
@@ -32,12 +32,12 @@ extern char buffer[JSON_MAX_SIZE];
 
 void setup() {
   // Initialize serial connection to ESP32CAM (or for debug)
-  Serial.begin (SerialBaud);
-  Serial.println();
-  Serial.setDebugOutput (true);
+  serial_setup ();
   
   // Boot after ESP32CAM (who's master for TM storage) is ready to receive
+  #ifndef DEBUG_OVER_SERIAL
   delay (10000);
+  #endif
    
   // Load default (hardcoded) WiFi and other settings, as fallback
   load_default_config();
@@ -47,6 +47,7 @@ void setup() {
   sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   if (config_this->fs_enable) {
     if (tm_this->fs_enabled = fs_setup()) {
+      sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
       publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
       publish_packet ((ccsds_t*)tm_this);  // #0
       if (file_load_settings (FS_LITTLEFS)) {
@@ -56,6 +57,7 @@ void setup() {
     }
   }
   else {
+    sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
     publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
   }
   #ifdef DEBUG_OVER_SERIAL  
@@ -203,22 +205,10 @@ void loop() {
   }
   #endif // GPS
   
-  // Serial keepalive mechanism
+  // Serial keepalive mechanism: if no data received over serial, send out ping and hope for reaction
   start_millis = millis();    
-  if (!config_this->debug_over_serial and timer_esp32.millis - var_timer.last_serial_out_millis > KEEPALIVE_INTERVAL) {
-    if (tm_this->serial_connected) {
-      Serial.println ("O");
-    }
-    else {
-      Serial.println ("o");
-    }
-    var_timer.last_serial_out_millis = millis();
-  }
-  if (!config_this->debug_over_serial and tm_this->serial_connected and millis()-var_timer.last_serial_in_millis > 2*KEEPALIVE_INTERVAL) {
-    tm_this->serial_connected = false;
-    tm_this->warn_serial_connloss = true;
-  }
-  timer_esp32.serial_duration += millis() - start_millis;
+  serial_keepalive();
+  timer_this->serial_duration += millis() - start_millis;
 
   // OTA check
   if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {
