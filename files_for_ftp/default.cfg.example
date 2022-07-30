@@ -16,6 +16,10 @@ ap_password=fli3d_backdoor
 #
 # ftp server by Fli3d ESP32
 #
+# encoding options for ftp_fs:
+# LITTLEFS: 1
+ftp_enable=1
+ftp_fs=1
 ftp_user=esp32
 ftp_password=fli3d
 #
@@ -34,7 +38,10 @@ yamcs_tc_port=10052
 #
 # file system
 #
+# encoding options for buffer_fs:
+# LITTLEFS: 1
 fs_enable=1
+buffer_fs=1
 #
 # sensor sampling rates
 #
@@ -53,6 +60,9 @@ camera_enable=1
 #
 # serial communications settings
 #
+# encoding for serial_format:
+# CCSDS: 0
+# JSON:  1
 serial_format=1
 #
 # sensor settings (TODO: current values valid for loose sensor!)
