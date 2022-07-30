@@ -20,7 +20,8 @@
 #define MOTION
 #define GPS
 #define ESP32CAM
-#define DEBUG_OVER_SERIAL // overrides keep-alive mechanism over serial when ESP32CAM is not present, thus disabling serial buffer and enabling keeping sending of TM even if no response
+
+#define SERIAL_KEEPALIVE_OVERRIDE
 
 // Libraries
 #include "fli3d.h"
@@ -34,11 +35,6 @@ void setup() {
   // Initialize serial connection to ESP32CAM (or for debug)
   serial_setup ();
   
-  // Boot after ESP32CAM (who's master for TM storage) is ready to receive
-  #ifndef DEBUG_OVER_SERIAL
-  delay (10000);
-  #endif
-   
   // Load default (hardcoded) WiFi and other settings, as fallback
   load_default_config();
   ccsds_init();
@@ -60,10 +56,6 @@ void setup() {
     sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
     publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
   }
-  #ifdef DEBUG_OVER_SERIAL  
-  config_this->debug_over_serial = true;
-  tm_this->serial_connected = true;
-  #endif // DEBUG_OVER_SERIAL
   publish_packet ((ccsds_t*)tm_this);  // #1
 
   // If WiFi enabled (AP/client), initialize
@@ -106,7 +98,7 @@ void setup() {
   separation_setup();
 
   // Initialize FTP server
-  if (config_esp32.ftp_enable and esp32.fs_enabled) {
+  if (config_esp32.ftp_enable) {
     esp32.ftp_enabled = ftp_setup();
     publish_packet ((ccsds_t*)tm_this);  // #7
   }
@@ -116,6 +108,8 @@ void setup() {
   ntp_check();
   timer_setup();
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
+  publish_udp_text ("ESP32 initialisation complete");
+
 }
 
 void loop() {
@@ -206,9 +200,14 @@ void loop() {
   #endif // GPS
   
   // Serial keepalive mechanism: if no data received over serial, send out ping and hope for reaction
+  #ifndef SERIAL_KEEPALIVE_OVERRIDE
   start_millis = millis();    
   serial_keepalive();
   timer_this->serial_duration += millis() - start_millis;
+  #else
+  tm_this->serial_connected = true;
+  tm_this->warn_serial_connloss = false;
+  #endif
 
   // OTA check
   if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {
