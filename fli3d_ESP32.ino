@@ -19,7 +19,7 @@
 #define PRESSURE
 #define MOTION
 #define GPS
-#define ESP32CAM
+//#define ESP32CAM
 
 #define SERIAL_KEEPALIVE_OVERRIDE
 
