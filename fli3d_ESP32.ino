@@ -103,10 +103,15 @@ void setup() {
     publish_packet ((ccsds_t*)tm_this);  // #7
   }
 
+  // Initialize OTA
+  if (config_esp32.ota_enable) {
+    ota_setup();
+  }
+
   // Initialize Timer and close initialisation
-  esp32.opsmode = MODE_CHECKOUT;
   ntp_check();
   timer_setup();
+  esp32.opsmode = MODE_CHECKOUT;
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
   publish_udp_text ("ESP32 initialisation complete");
 
