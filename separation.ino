@@ -8,6 +8,8 @@ void ICACHE_RAM_ATTR separation_detectChange();
 void separation_setup() {
   pinMode(SEP_STS_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(SEP_STS_PIN), separation_detectChange, CHANGE);
+  esp32.separation_sts = digitalRead (SEP_STS_PIN);
+  sprintf(buffer, "Separation detection initialized (%s)", esp32.separation_sts?"separated":"mated");
   publish_event (STS_ESP32, SS_SEPARATION, EVENT_INIT, "Separation detection initialized");
 }
 
