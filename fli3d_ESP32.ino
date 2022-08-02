@@ -1,6 +1,6 @@
 /* 
  *  Fli3d - core system functionality
- *  
+ *   *  
  *  for ESP32 MH-ET LIVE MiniKit board with the following connections:
  *  - serial connection to ESP32CAM at 115200 baud
  *  - serial connection to NEO6MV2 GPS receiver at 57600 baud
@@ -8,10 +8,11 @@
  *  - separation wire (GND is mated, open is unmated)
  *  - WL102-341 radio transmitter
  *  
+ *  use partition scheme "Default with spiffs" or custom partition scheme "Fli3d ESP32 (OTA/maximized SPIFFS)"
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.7 (20220725)"
+#define SW_VERSION "Fli3d ESP32 v0.9.9 (20220802)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
@@ -19,9 +20,8 @@
 #define PRESSURE
 #define MOTION
 #define GPS
-//#define ESP32CAM
-
-#define SERIAL_KEEPALIVE_OVERRIDE
+//#define SERIAL_TCTM
+//#define SERIAL_KEEPALIVE_OVERRIDE
 
 // Libraries
 #include "fli3d.h"
@@ -65,36 +65,43 @@ void setup() {
   } 
 
   // Initialise subsystems
-  #ifdef ESP32CAM
+  #ifdef SERIAL_TCTM
   if (config_esp32.camera_enable) { 
     esp32.camera_enabled = true;
   }
-  #endif // ESP32CAM 
+  #endif // SERIAL_TCTM 
+  
   #ifdef GPS
-  if ((esp32.gps_enabled = gps_setup())) {
+  Serial.println("GPS");
+  if (esp32.gps_enabled = gps_setup()) {
+    Serial.println("GPS ok");
     publish_packet ((ccsds_t*)tm_this);  // #3
   }
   #endif // GPS
+  
   #ifdef MOTION
-  if ((esp32.motion_enabled = motion_setup())) {
+  if (esp32.motion_enabled = motion_setup()) {
     //mpu6050_calibrate();    // TODO: to be done offline on loose sensor, then put calibration values in configuration file
     mpu6050_checkConfig(); 
     //mpu6050_printConfig(); 
     publish_packet ((ccsds_t*)tm_this);  // #4
   }
   #endif // MOTION
+  
   #ifdef PRESSURE
-  if ((esp32.pressure_enabled = pressure_setup())) { // needs to be after MOTION
+  if (esp32.pressure_enabled = pressure_setup()) { // needs to be after MOTION
     bmp280_checkConfig();
     publish_packet ((ccsds_t*)tm_this);  // #5
   }
   #endif // PRESSURE
+  
   #ifdef RADIO
   if (config_esp32.radio_enable) {
     esp32.radio_enabled = radio_setup();
     publish_packet ((ccsds_t*)tm_this);  // #6
   }
   #endif // RADIO
+  
   separation_setup();
 
   // Initialize FTP server
@@ -113,8 +120,6 @@ void setup() {
   timer_setup();
   esp32.opsmode = MODE_CHECKOUT;
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
-  publish_udp_text ("ESP32 initialisation complete");
-
 }
 
 void loop() {
@@ -173,19 +178,20 @@ void loop() {
   #endif // RADIO
 
   // ESP32CAM with OV2640 camera and SD
-  #ifdef ESP32CAM
+  #ifdef SERIAL_TCTM
   if (serial_check()) {
     start_millis = millis();
     serial_parse();
     timer_esp32.esp32cam_duration += millis() - start_millis;
   }
-  #endif // ESP32CAM
+  #endif // SERIAL_TCTM
   
   // NEO6MV2 GPS
   #ifdef GPS
   if (esp32.gps_enabled) {
     start_millis = millis();
     if (config_esp32.gps_udp_raw_enable) {
+      Serial.print("DEBUG: publish GPS data to UDP");
       publish_udp_gps();
     }
     else {
@@ -205,6 +211,7 @@ void loop() {
   #endif // GPS
   
   // Serial keepalive mechanism: if no data received over serial, send out ping and hope for reaction
+  #ifdef SERIAL_TCTM
   #ifndef SERIAL_KEEPALIVE_OVERRIDE
   start_millis = millis();    
   serial_keepalive();
@@ -213,6 +220,7 @@ void loop() {
   tm_this->serial_connected = true;
   tm_this->warn_serial_connloss = false;
   #endif
+  #endif // SERIAL_TCTM
 
   // OTA check
   if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {

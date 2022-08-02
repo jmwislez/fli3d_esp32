@@ -35,6 +35,4 @@ void ota_setup() {
   ArduinoOTA.begin();
 
   publish_event (STS_ESP32, SS_ESP32, EVENT_INIT, "OTA capability initialized");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
 }
