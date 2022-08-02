@@ -3,7 +3,7 @@
 ## Compilation instructions
 To compile in the Arduino IDE, for ESP32 core v1.0.6, board "MH ET LIVE ESP32MiniKit" and with partition scheme "Default with spiffs" or custom partition scheme "Fli3d ESP32 (OTA/maximized SPIFFS)" provided.
 
-To add this partition scheme, copy `fli3d-esp32.csv` to `C:\Users\[YOURNAME]\Documents\ArduinoData\packages\esp32\hardware\esp32\1.0.6\tools\partitions`, and add the following lines to `C:\Users\jmw\Documents\ArduinoData\packages\esp32\hardware\esp32\1.0.6\boards.txt`:
+To add this partition scheme, copy `fli3d-esp32.csv` to `C:\Users\[YOURNAME]\Documents\ArduinoData\packages\esp32\hardware\esp32\1.0.6\tools\partitions`, and add the following lines to `C:\Users\[YOURNAME]\Documents\ArduinoData\packages\esp32\hardware\esp32\1.0.6\boards.txt`:
 
 `mhetesp32minikit.menu.PartitionScheme.huge_app=Fli3d ESP32 (OTA/maximized SPIFFS)`
 `mhetesp32minikit.menu.PartitionScheme.huge_app.build.partitions=fli3d-esp32`
