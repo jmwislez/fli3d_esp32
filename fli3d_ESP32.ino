@@ -12,7 +12,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v0.9.9 (20220802)"
+#define SW_VERSION "Fli3d ESP32 v1.0.0 (20220803)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
@@ -72,9 +72,7 @@ void setup() {
   #endif // SERIAL_TCTM 
   
   #ifdef GPS
-  Serial.println("GPS");
   if (esp32.gps_enabled = gps_setup()) {
-    Serial.println("GPS ok");
     publish_packet ((ccsds_t*)tm_this);  // #3
   }
   #endif // GPS
@@ -191,7 +189,6 @@ void loop() {
   if (esp32.gps_enabled) {
     start_millis = millis();
     if (config_esp32.gps_udp_raw_enable) {
-      Serial.print("DEBUG: publish GPS data to UDP");
       publish_udp_gps();
     }
     else {
