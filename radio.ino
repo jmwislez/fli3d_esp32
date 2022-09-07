@@ -25,4 +25,10 @@ void publish_radio() {
   }
 }
 
+#else
+
+void publish_radio() {
+  // do nothing
+}
+
 #endif // RADIO
