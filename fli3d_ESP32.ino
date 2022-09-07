@@ -4,7 +4,7 @@
  *  for ESP32 MH-ET LIVE MiniKit board with the following connections:
  *  - serial connection to ESP32CAM at 115200 baud
  *  - serial connection to NEO6MV2 GPS receiver at 57600 baud
- *  - I2C bus to MPU6050 accelerometer/gyroscope and BMP280 pressure sensor 
+ *  - I2C bus to MPU6050/MPU9250 accelerometer/gyroscope and BMP280 pressure sensor 
  *  - separation wire (GND is mated, open is unmated)
  *  - WL102-341 radio transmitter
  *  
@@ -12,15 +12,15 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v1.0.0 (20220803)"
+#define SW_VERSION "Fli3d ESP32 v1.1.0 (20220827)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
-#define RADIO
+//#define RADIO
 #define PRESSURE
 #define MOTION
 #define GPS
-//#define SERIAL_TCTM
+#define CAMERA
 //#define SERIAL_KEEPALIVE_OVERRIDE
 
 // Libraries
@@ -30,6 +30,8 @@
 // Global variables used in this file
 bool reset_gps_timer, separation_sts_changed;
 extern char buffer[JSON_MAX_SIZE];
+
+TaskHandle_t LoopCore0;
 
 void setup() {
   // Initialize serial connection to ESP32CAM (or for debug)
@@ -65,11 +67,11 @@ void setup() {
   } 
 
   // Initialise subsystems
-  #ifdef SERIAL_TCTM
+  #ifdef CAMERA
   if (config_esp32.camera_enable) { 
     esp32.camera_enabled = true;
   }
-  #endif // SERIAL_TCTM 
+  #endif // CAMERA 
   
   #ifdef GPS
   if (esp32.gps_enabled = gps_setup()) {
@@ -80,7 +82,7 @@ void setup() {
   #ifdef MOTION
   if (esp32.motion_enabled = motion_setup()) {
     //mpu6050_calibrate();    // TODO: to be done offline on loose sensor, then put calibration values in configuration file
-    mpu6050_checkConfig(); 
+    //mpu6050_checkConfig(); 
     //mpu6050_printConfig(); 
     publish_packet ((ccsds_t*)tm_this);  // #4
   }
@@ -113,12 +115,35 @@ void setup() {
     ota_setup();
   }
 
+  // Initialize time-critical monitoring through core 0
+  xTaskCreatePinnedToCore(
+    loop_core0,          // name of the task function
+    "loop core 0",       // name of the task
+    1000,                // memory assigned for the task
+    NULL,                // parameter to pass if any
+    1,                   // priority of task, starting from 0(Highestpriority) *IMPORTANT*( if set to 1 and there is no activity in your 2nd loop, it will reset the esp32)
+    &LoopCore0,          // Reference name of taskHandle variable
+    0);                  // choose core (0 or 1)
+  
   // Initialize Timer and close initialisation
   ntp_check();
   timer_setup();
   esp32.opsmode = MODE_CHECKOUT;
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
 }
+
+void loop_core0( void * parameter ) {
+  for (;;) {
+    // ESP32CAM with OV2640 camera and SD
+    #ifdef CAMERA
+    if (serial_check()) {
+      serial_parse();
+    }
+    #endif // CAMERA
+    delay(1);
+  }
+}
+
 
 void loop() {
   static uint32_t start_millis;
@@ -147,12 +172,12 @@ void loop() {
   } 
   #endif // PRESSURE
 
-  // MPU6050 accelerometer/gyroscope
+  // MPU6050 or MPU9250 accelerometer/gyroscope
   #ifdef MOTION
   else if (var_timer.do_motion and esp32.motion_enabled) {
     start_millis = millis();
-    if (mpu6050_acquire()) {
-      publish_packet ((ccsds_t*)&mpu6050);
+    if (mpu_acquire()) {
+      publish_packet ((ccsds_t*)&motion);
     }
     else {
       // will try to reset accelerometer once, and then give up
@@ -174,15 +199,6 @@ void loop() {
     }
   }
   #endif // RADIO
-
-  // ESP32CAM with OV2640 camera and SD
-  #ifdef SERIAL_TCTM
-  if (serial_check()) {
-    start_millis = millis();
-    serial_parse();
-    timer_esp32.esp32cam_duration += millis() - start_millis;
-  }
-  #endif // SERIAL_TCTM
   
   // NEO6MV2 GPS
   #ifdef GPS
@@ -206,9 +222,15 @@ void loop() {
     timer_esp32.gps_duration += millis() - start_millis;
   }
   #endif // GPS
-  
+
+  // TC check
+  #ifndef ASYNCUDP
+  start_millis = millis(); 
+  yamcs_tc_check();
+  timer_esp32.tc_duration += millis() - start_millis;
+  #endif
+    
   // Serial keepalive mechanism: if no data received over serial, send out ping and hope for reaction
-  #ifdef SERIAL_TCTM
   #ifndef SERIAL_KEEPALIVE_OVERRIDE
   start_millis = millis();    
   serial_keepalive();
@@ -217,7 +239,6 @@ void loop() {
   tm_this->serial_connected = true;
   tm_this->warn_serial_connloss = false;
   #endif
-  #endif // SERIAL_TCTM
 
   // OTA check
   if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {
@@ -234,17 +255,7 @@ void loop() {
     ftp_check (config_this->buffer_fs);
     timer_esp32.ftp_duration += millis() - start_millis;
   }
-
-  // TC check
-  #ifndef ASYNCUDP
-  if (esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) {
-    start_millis = millis(); 
-    // TC are possible when Fli3d is not flying
-    yamcs_tc_check();
-    timer_esp32.tc_duration += millis() - start_millis;
-  }
-  #endif
-
+  
   // wifi check
   if (var_timer.do_wifi and tm_this->wifi_enabled) {
     start_millis = millis();

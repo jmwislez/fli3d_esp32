@@ -94,7 +94,7 @@ bool pressure_setup() {
 bool bmp280_setup() {  
   
   if (!esp32.motion_enabled) {
-    publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, "MPU6050 not initialized; configuring MPU6050 I2C pass-through for BMP280");
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_WARNING, "MPU not initialized; configuring MPU I2C pass-through for BMP280");
     Wire.begin (I2C_SDA_PIN, I2C_SCL_PIN); 
     Wire.setClock (400000);
     //mpu.setI2CBypassEnabled (true);
@@ -108,10 +108,10 @@ bool bmp280_setup() {
 
   // Check if we find a properly responding BMP280 device
   if (bmp280_getDeviceId() == (uint8_t)BMP280_DEVICE_ID) {
-    publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "Found BMP280 barometric pressure sensor");
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_INIT, "Found BMP280 barometric pressure sensor");
   }
   else {
-    publish_event (STS_ESP32, SS_BMP280, EVENT_ERROR, "Failed to connect to BMP280; disabling");
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_ERROR, "Failed to connect to BMP280; disabling");
     return false;
   }
 
@@ -145,7 +145,7 @@ bool bmp280_setup() {
   bmp280_setTempOversampling (tempOversampling);
   bmp280_setPresOversampling (presOversampling);
   bmp280_setMode (mode);
-  publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "Initialized BMP280 barometric pressure sensor");
+  publish_event (STS_ESP32, SS_PRESSURE, EVENT_INIT, "Initialized BMP280 barometric pressure sensor");
   return true;
 }
 
@@ -177,7 +177,7 @@ bool bmp280_acquire() {
   }
   else {
     // lost connection, attempt reset
-    publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, "Lost connection to BMP280; attempting reset");
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_WARNING, "Lost connection to BMP280; attempting reset");
     return false;
   }
 }
@@ -217,11 +217,11 @@ bool bmp280_checkConfig() {
   }
   if (strcmp(bmp280_config1, bmp280_config1_reference)) {
     sprintf (buffer, "BMP280 configuration not as expected (%s)", bmp280_config1);
-    publish_event (STS_ESP32, SS_BMP280, EVENT_WARNING, buffer);
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_WARNING, buffer);
     return false;
   }
   else {
-    publish_event (STS_ESP32, SS_BMP280, EVENT_INIT, "BMP280 configuration checked");
+    publish_event (STS_ESP32, SS_PRESSURE, EVENT_INIT, "BMP280 configuration checked");
     return true;
   }
 }
