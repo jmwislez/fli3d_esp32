@@ -12,7 +12,7 @@
 #include <ublox/ubxGPS.h>
 
 #define GPSBaud 57600 // tried 115200 but got garbage in some cases
-#define SerialGPS Serial2
+#define SerialGPS Serial1
 #define GPS_BUFFER_SIZE 50
 
 const int32_t latitude_deg_to_m = M_PI*12742000/360;
@@ -26,27 +26,27 @@ bool gps_setup() {
 
   if (baud_rate = find_gps_baudrate()) {
     sprintf (buffer, "Connected to GPS at %d baud", baud_rate);
-    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+    publish_event (STS_ESP32, SS_GPS, EVENT_INIT, buffer);
     gps_configure();
-    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, "Reconfiguring GPS");     
+    publish_event (STS_ESP32, SS_GPS, EVENT_INIT, "Reconfiguring GPS");     
     if (baud_rate != GPSBaud) { 
       set_gps_baudrate (); 
       sprintf (buffer, "Set GPS to %d baud", GPSBaud);
-      publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);  
+      publish_event (STS_ESP32, SS_GPS, EVENT_INIT, buffer);  
     }
     gps_restart();
-    if (check_gps_communication()) {
+    if (check_gps_communication(baud_rate)) {
       sprintf (buffer, "Connected to GPS at %d baud", baud_rate);
-      publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+      publish_event (STS_ESP32, SS_GPS, EVENT_INIT, buffer);
       return true;
     }
     else {
-      publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, "Failed to reconnect to GPS, disabling");
+      publish_event (STS_ESP32, SS_GPS, EVENT_ERROR, "Failed to reconnect to GPS, disabling");
       return false;      
     }
   }
   else {
-    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_ERROR, "Failed to connect to GPS, disabling");
+    publish_event (STS_ESP32, SS_GPS, EVENT_ERROR, "Failed to connect to GPS, disabling");
     return false;
   }
 }
@@ -57,14 +57,14 @@ uint32_t find_gps_baudrate() {
     delay (1000);
     SerialGPS.begin(gps_baudrate[i], SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
     SerialGPS.flush();
-    if (check_gps_communication ()) {
+    if (check_gps_communication (gps_baudrate[i])) {
       return gps_baudrate[i];
     }
   }
   return 0;
 }
 
-bool check_gps_communication () {
+bool check_gps_communication (uint32_t baudrate) {
   char gps_char;
   uint8_t gps_good;
   uint8_t gps_bad;
@@ -80,31 +80,32 @@ bool check_gps_communication () {
       gps_char = SerialGPS.read();
       if (ctr++ > 200) {
         if (gps_char >= ' ' and gps_char <= 'Z' or (uint8_t)gps_char == 10 or (uint8_t)gps_char == 13) {
-          Serial.print(gps_char);
+          //Serial.print(gps_char);
           gps_good++;
         }
         else {
-          Serial.print("[");
-          Serial.print(gps_char);
-          Serial.print("]");
+          //Serial.print("[");
+          //Serial.print(gps_char);
+          //Serial.print("]");
           gps_bad++;
         }
       }
     }
     now_millis = millis();
   } // timeout
-  Serial.println();
-  Serial.print("GPS ratio ");
-  Serial.print(gps_good);
-  Serial.print(":");
-  Serial.println(gps_bad);   
-  if (gps_good = 255 and gps_bad < 50) {
+  //Serial.println();
+  //Serial.print("GPS ratio ");
+  //Serial.print(gps_good);
+  //Serial.print(":");
+  //Serial.println(gps_bad);   
+  if (gps_good == 255 and gps_bad < 5) {
     // proper data flow received
     return true;
   }
   else if (gps_good == 0 and gps_bad == 0) {
     // timeout
-    publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, "Timeout in trying to connect to GPS");
+    sprintf(buffer, "Timeout in trying to connect to GPS at %u baud", baudrate);
+    publish_event (STS_ESP32, SS_GPS, EVENT_WARNING, buffer);
     return false;
   }
   else {
@@ -170,7 +171,7 @@ void set_gps_samplerate (uint8_t rate) {
     case 10: sendUBX( ubxRate10Hz, sizeof(ubxRate10Hz) ); break;
     case 16: sendUBX( ubxRate16Hz, sizeof(ubxRate16Hz) ); break;
     default: sprintf (buffer, "Invalid sample rate request for GPS (%d Hz), setting to 1 Hz", config_esp32.gps_rate);
-             publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
+             publish_event (STS_ESP32, SS_GPS, EVENT_WARNING, buffer);
              config_esp32.gps_rate = 1;
              sendUBX( ubxRate1Hz, sizeof(ubxRate1Hz) );
              break;
@@ -193,13 +194,13 @@ bool set_gps_baudrate () {
     case 57600:   gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud57600 ); break;
     case 115200:  gps.send_P( &SerialGPS, (const __FlashStringHelper *) baud115200 ); break;
     default:      sprintf (buffer, "Invalid baud rate request for GPS (%d baud)", GPSBaud);
-                  publish_event (STS_ESP32, SS_NEO6MV2, EVENT_WARNING, buffer);
+                  publish_event (STS_ESP32, SS_GPS, EVENT_WARNING, buffer);
                   return false;
                   break;
   }
   // Set GPS rate to GPSBaud
   sprintf (buffer, "Setting GPS to %u baud", GPSBaud);
-  publish_event (STS_ESP32, SS_NEO6MV2, EVENT_INIT, buffer);
+  publish_event (STS_ESP32, SS_GPS, EVENT_INIT, buffer);
   return true;
 }
 
