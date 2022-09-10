@@ -16,6 +16,9 @@ void timer_loop() {
   // data acquisition and publication timer
   timer_esp32.millis = millis();
   if (timer_esp32.millis >= var_timer.next_second) {
+    #ifdef TEMPERATURE
+    temperature_acquire();
+    #endif
     publish_packet ((ccsds_t*)&esp32);
     publish_packet ((ccsds_t*)&timer_esp32);
     sync_file_ccsds();

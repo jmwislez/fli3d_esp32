@@ -21,6 +21,7 @@
 #define MOTION
 #define GPS
 #define CAMERA
+#define TEMPERATURE
 //#define SERIAL_KEEPALIVE_OVERRIDE
 
 // Libraries
@@ -94,11 +95,18 @@ void setup() {
     publish_packet ((ccsds_t*)tm_this);  // #5
   }
   #endif // PRESSURE
+
+  #ifdef TEMPERATURE
+  if (config_esp32.temperature_enable) {
+    esp32.temperature_enabled = temperature_setup();
+    publish_packet ((ccsds_t*)tm_this);  // #6    
+  }
+  #endif // TEMPERATURE
   
   #ifdef RADIO
   if (config_esp32.radio_enable) {
     esp32.radio_enabled = radio_setup();
-    publish_packet ((ccsds_t*)tm_this);  // #6
+    publish_packet ((ccsds_t*)tm_this);  // #7
   }
   #endif // RADIO
   
@@ -107,7 +115,7 @@ void setup() {
   // Initialize FTP server
   if (config_esp32.ftp_enable) {
     esp32.ftp_enabled = ftp_setup();
-    publish_packet ((ccsds_t*)tm_this);  // #7
+    publish_packet ((ccsds_t*)tm_this);  // #8
   }
 
   // Initialize OTA
@@ -128,7 +136,7 @@ void setup() {
   // Initialize Timer and close initialisation
   ntp_check();
   timer_setup();
-  esp32.opsmode = MODE_CHECKOUT;
+  set_opsmode(MODE_CHECKOUT);
   publish_event (STS_THIS, SS_THIS, EVENT_INIT, "Initialisation complete");  
 }
 

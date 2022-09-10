@@ -215,7 +215,6 @@ bool mpu_acquire() {
   static int16_t mpu_gyro_raw_x, mpu_gyro_raw_y, mpu_gyro_raw_z;
   static int16_t mpu_magn_raw_x, mpu_magn_raw_y, mpu_magn_raw_z;
   static int16_t gravity_z;
-  static int16_t mpu_temp_raw;
   static int64_t mpu_accel_xy2; 
 
   if (mpu.testConnection()) {
@@ -242,9 +241,12 @@ bool mpu_acquire() {
     motion.gyro_x = 1000*(mpu_gyro_raw_x - config_esp32.mpu_gyro_offset_x)/mpu_gyro_scaleFactor[motion.gyro_range]; // [cdeg/s]
     motion.gyro_y = 1000*(mpu_gyro_raw_y - config_esp32.mpu_gyro_offset_y)/mpu_gyro_scaleFactor[motion.gyro_range]; // [cdeg/s]
     motion.gyro_z = 1000*(mpu_gyro_raw_z - config_esp32.mpu_gyro_offset_z)/mpu_gyro_scaleFactor[motion.gyro_range]; // [cdeg/s]
-    motion.magn_x = (int16_t) mpu_magn_raw_x * 1200 / 4096; // TODO: units and scaling!
-    motion.magn_y = (int16_t) mpu_magn_raw_y * 1200 / 4096; // TODO: units and scaling!
-    motion.magn_z = (int16_t) mpu_magn_raw_z * 1200 / 4096; // TODO: units and scaling!
+    #ifdef MPU_9250
+    motion.magn_x = (int16_t) mpu_magn_raw_x * 1200 / 4096;
+    motion.magn_y = (int16_t) mpu_magn_raw_y * 1200 / 4096;
+    motion.magn_z = (int16_t) mpu_magn_raw_z * 1200 / 4096;
+    
+    #endif
     mpu_accel_xy2 = motion.accel_x*motion.accel_x + motion.accel_y*motion.accel_y;
     motion.g = uint16_t (1000*sqrt(float(mpu_accel_xy2 + motion.accel_z*motion.accel_z))/float(gravity_constant)); // [mG]
     if (esp32.state == STATE_THRUST) {
@@ -272,9 +274,9 @@ bool mpu_acquire() {
           esp32.state = STATE_FREEFALL;
         }
       }
-      else if (950 < motion.g and motion.g < 1050) { // TODO: determine appropriate limits
+      else if (900 < motion.g and motion.g < 1100) { // TODO: determine appropriate limits
         if (esp32.state != STATE_STATIC) {
-          publish_event (STS_ESP32, SS_MOTION, EVENT_INFO, "Static rocket detected");
+          publish_event (STS_ESP32, SS_MOTION, EVENT_INFO, "Static state detected");
           esp32.state = STATE_STATIC;
         }
       }
