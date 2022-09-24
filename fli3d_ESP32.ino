@@ -12,7 +12,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v1.1.0 (20220827)"
+#define SW_VERSION "Fli3d ESP32 v1.1.1 (20220913)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
@@ -249,7 +249,7 @@ void loop() {
   #endif
 
   // OTA check
-  if (esp32.opsmode == MODE_CHECKOUT and config_esp32.ota_enable) {
+  if (esp32.opsmode == MODE_MAINTENANCE and config_esp32.ota_enable) {
     start_millis = millis();    
     ArduinoOTA.handle();
     esp32.ota_enabled = true;
@@ -257,7 +257,7 @@ void loop() {
   }
   
   // FTP check
-  if ((esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_DONE) and tm_this->ftp_enabled) {
+  if ((esp32.opsmode == MODE_CHECKOUT or esp32.opsmode == MODE_MAINTENANCE) and tm_this->ftp_enabled) {
     // FTP server is active when Fli3d is being prepared or done
     start_millis = millis();    
     ftp_check (config_this->buffer_fs);

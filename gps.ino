@@ -227,6 +227,11 @@ bool gps_check() {
         neo6mv2.minutes = fix.dateTime.minutes;
         neo6mv2.seconds = fix.dateTime.seconds;
         neo6mv2.centiseconds = fix.dateTime_cs;
+        if (!tm_this->time_set) {
+          datetime.setDateTime(fix.dateTime.year, fix.dateTime.month, fix.dateTime.day, fix.dateTime.hours, fix.dateTime.minutes, fix.dateTime.seconds);
+          config_this->boot_epoch = datetime.getUnix()-millis()/1000;
+          tm_this->time_set = true;
+        }
       }
       if (neo6mv2.location_valid = fix.valid.location) {
         neo6mv2.latitude = fix.latitudeL();

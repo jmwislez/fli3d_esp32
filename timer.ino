@@ -6,6 +6,7 @@ extern bool sync_fs_ccsds();
  
 void timer_setup() {
     var_timer.next_second = 1000*(millis()/1000) + 1000;
+    var_timer.next_temperature_time = 1000*(millis()/1000) + 2000;
     var_timer.radio_interval = (1000 / config_esp32.radio_rate);
     var_timer.pressure_interval = (1000 / config_esp32.pressure_rate);
     var_timer.motion_interval = (1000 / config_esp32.motion_rate);
@@ -15,16 +16,18 @@ void timer_setup() {
 void timer_loop() {
   // data acquisition and publication timer
   timer_esp32.millis = millis();
-  if (timer_esp32.millis >= var_timer.next_second) {
-    #ifdef TEMPERATURE
+  #ifdef TEMPERATURE
+  if (timer_esp32.millis >= var_timer.next_temperature_time) {
     temperature_acquire();
-    #endif
+  }
+  #endif
+  if (timer_esp32.millis >= var_timer.next_second) {
     publish_packet ((ccsds_t*)&esp32);
     publish_packet ((ccsds_t*)&timer_esp32);
     sync_file_ccsds();
     var_timer.next_second += 1000;
   }
-  if (esp32.opsmode != MODE_DONE) {
+  if (tm_this->opsmode != MODE_MAINTENANCE) {
     if (timer_esp32.millis >= var_timer.next_radio_time) {
       var_timer.do_radio = true;
       var_timer.next_radio_time = timer_esp32.millis + var_timer.radio_interval;
@@ -44,13 +47,13 @@ void timer_loop() {
       var_timer.do_gps = true;
       var_timer.next_gps_time = timer_esp32.millis + 1000;  // 1Hz as long as no data 
     }
-  }
-  if (timer_esp32.millis >= var_timer.next_wifi_time) {
-    var_timer.do_wifi = true;
-    var_timer.next_wifi_time = timer_esp32.millis + WIFI_CHECK*1000;
-  } 
-  if (!tm_this->time_set and timer_esp32.millis >= var_timer.next_ntp_time) {
-    var_timer.do_ntp = true;
-    var_timer.next_ntp_time = timer_esp32.millis + NTP_CHECK*1000;
+    if (timer_esp32.millis >= var_timer.next_wifi_time) {
+      var_timer.do_wifi = true;
+      var_timer.next_wifi_time = timer_esp32.millis + WIFI_CHECK*1000;
+    } 
+    if (!tm_this->time_set and timer_esp32.millis >= var_timer.next_ntp_time) {
+      var_timer.do_ntp = true;
+      var_timer.next_ntp_time = timer_esp32.millis + NTP_CHECK*1000;
+    }
   }
 }

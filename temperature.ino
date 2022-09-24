@@ -9,20 +9,20 @@
 DHTesp dht;
 
 bool temperature_setup() {
-  dht.setup(DHT_PIN, DHTesp::DHT22);
+  dht.setup(DHT_PIN, DHTesp::AUTO_DETECT);
   if (dht.getStatus()) {
     publish_event (STS_ESP32, SS_ESP32, EVENT_ERROR, "Temperature sensor not initialized");
     return false;
   }
   else {
-    sprintf(buffer, "%s temperature sensor initialized", dhtName[dht.getModel()]);
+    sprintf(buffer, "%s temperature sensor initialized (%.1f degC)", dhtName[dht.getModel()], dht.getTemperature());
     publish_event (STS_ESP32, SS_SEPARATION, EVENT_INIT, buffer);
     return true;
   }
 }
 
 void temperature_acquire() {
-  esp32.temperature = (int16_t)(dht.getTemperature()*100);
+  esp32.temperature = int16_t(100*dht.getTemperature());
 }
 
 #endif // TEMPERATURE
