@@ -12,7 +12,7 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v1.1.1 (20220913)"
+#define SW_VERSION "Fli3d ESP32 v1.1.2 (20220925)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile

@@ -228,9 +228,14 @@ bool gps_check() {
         neo6mv2.seconds = fix.dateTime.seconds;
         neo6mv2.centiseconds = fix.dateTime_cs;
         if (!tm_this->time_set) {
-          datetime.setDateTime(fix.dateTime.year, fix.dateTime.month, fix.dateTime.day, fix.dateTime.hours, fix.dateTime.minutes, fix.dateTime.seconds);
+          datetime.setDateTime(2000+fix.dateTime.year, fix.dateTime.month, fix.dateTime.date, fix.dateTime.hours, fix.dateTime.minutes, fix.dateTime.seconds);
           config_this->boot_epoch = datetime.getUnix()-millis()/1000;
           tm_this->time_set = true;
+          sprintf (buffer, "Set time to %04u-%02u-%02u %02u:%02u:%02u based on GPS", 2000+fix.dateTime.year, fix.dateTime.month, fix.dateTime.date, fix.dateTime.hours, fix.dateTime.minutes, fix.dateTime.seconds);
+          publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
+          if (tm_this->fs_enabled) {
+            create_today_dir (FS_LITTLEFS);
+          }
         }
       }
       if (neo6mv2.location_valid = fix.valid.location) {

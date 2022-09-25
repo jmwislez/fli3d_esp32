@@ -11,7 +11,8 @@ DHTesp dht;
 bool temperature_setup() {
   dht.setup(DHT_PIN, DHTesp::AUTO_DETECT);
   if (dht.getStatus()) {
-    publish_event (STS_ESP32, SS_ESP32, EVENT_ERROR, "Temperature sensor not initialized");
+    sprintf(buffer, "Temperature sensor not initialized (%s)", (dht.getStatus()==1)?"TIMEOUT":"CHECKSUM");
+    publish_event (STS_ESP32, SS_ESP32, EVENT_ERROR, buffer);
     return false;
   }
   else {
