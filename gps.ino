@@ -24,7 +24,7 @@ static gps_fix fix;
 bool gps_setup() {
   uint32_t baud_rate;
 
-  if (baud_rate = find_gps_baudrate()) {
+  if ((baud_rate = find_gps_baudrate())) {
     sprintf (buffer, "Connected to GPS at %d baud", baud_rate);
     publish_event (STS_ESP32, SS_GPS, EVENT_INIT, buffer);
     gps_configure();
@@ -68,7 +68,7 @@ bool check_gps_communication (uint32_t baudrate) {
   char gps_char;
   uint8_t gps_good;
   uint8_t gps_bad;
-  uint16_t ctr;
+  uint16_t ctr = 0;
   uint32_t start_probe_millis, now_millis;
 
   gps_good = 0;
@@ -79,7 +79,7 @@ bool check_gps_communication (uint32_t baudrate) {
     while (SerialGPS.available() and gps_good < 255 and gps_bad < 255) {
       gps_char = SerialGPS.read();
       if (ctr++ > 200) {
-        if (gps_char >= ' ' and gps_char <= 'Z' or (uint8_t)gps_char == 10 or (uint8_t)gps_char == 13) {
+        if ((gps_char >= ' ' and gps_char <= 'Z') or (uint8_t)gps_char == 10 or (uint8_t)gps_char == 13) {
           //Serial.print(gps_char);
           gps_good++;
         }
@@ -211,6 +211,7 @@ bool gps_restart() {
   delay (1000);
   SerialGPS.begin(GPSBaud, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   SerialGPS.flush();
+  return true;
 }
 
 bool gps_check() {
@@ -222,7 +223,7 @@ bool gps_check() {
       neo6mv2.millis = millis();
       neo6mv2.status = fix.status;
       neo6mv2.satellites = fix.satellites;
-      if (neo6mv2.time_valid = fix.valid.time) {
+      if ((neo6mv2.time_valid = fix.valid.time)) {
         neo6mv2.hours = fix.dateTime.hours;
         neo6mv2.minutes = fix.dateTime.minutes;
         neo6mv2.seconds = fix.dateTime.seconds;
@@ -238,11 +239,11 @@ bool gps_check() {
           }
         }
       }
-      if (neo6mv2.location_valid = fix.valid.location) {
+      if ((neo6mv2.location_valid = fix.valid.location)) {
         neo6mv2.latitude = fix.latitudeL();
         neo6mv2.longitude = fix.longitudeL();
       }
-      if (neo6mv2.altitude_valid = fix.valid.altitude) {
+      if ((neo6mv2.altitude_valid = fix.valid.altitude)) {
         neo6mv2.altitude = fix.altitude_cm();
         if (esp32.opsmode == MODE_CHECKOUT) {
           neo6mv2.offset_valid = neo6mv2_zero_position (neo6mv2.latitude, neo6mv2.longitude, neo6mv2.altitude);
@@ -253,21 +254,21 @@ bool gps_check() {
         neo6mv2.y = (int16_t)((neo6mv2.longitude - neo6mv2.longitude_zero)*longitude_deg_to_m)/10000; //cm
         neo6mv2.z = (int16_t)(neo6mv2.altitude - neo6mv2.altitude_zero);
       }      
-      if (neo6mv2.speed_valid = fix.valid.velned) {
+      if ((neo6mv2.speed_valid = fix.valid.velned)) {
         neo6mv2.v_north = fix.velocity_north; // cm/s
         neo6mv2.v_east = fix.velocity_east;   // cm/s
         neo6mv2.v_down = fix.velocity_down;   // cm/s
       }
-      if (neo6mv2.hdop_valid = fix.valid.hdop) { 
+      if ((neo6mv2.hdop_valid = fix.valid.hdop)) { 
         neo6mv2.milli_hdop = fix.hdop; 
       } 
-      if (neo6mv2.vdop_valid = fix.valid.vdop) { 
+      if ((neo6mv2.vdop_valid = fix.valid.vdop)) { 
         neo6mv2.milli_vdop = fix.vdop; 
       } 
-      if (neo6mv2.pdop_valid = fix.valid.pdop) { 
+      if ((neo6mv2.pdop_valid = fix.valid.pdop)) { 
         neo6mv2.milli_pdop = fix.pdop; 
       } 
-      if (neo6mv2.error_valid = (fix.valid.lat_err and fix.valid.lon_err and fix.valid.alt_err)) {
+      if ((neo6mv2.error_valid = (fix.valid.lat_err and fix.valid.lon_err and fix.valid.alt_err))) {
         neo6mv2.x_err = fix.lat_err_cm;
         neo6mv2.y_err = fix.lon_err_cm;
         neo6mv2.z_err = fix.alt_err_cm;

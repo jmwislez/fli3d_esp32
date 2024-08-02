@@ -2,15 +2,15 @@
  * Fli3d - Accelerometer/Gyroscope functionality
  */
 
-//#define MPU_6050
-#define MPU_9250
+#define MPU_6050
+//#define MPU_9250
 
 #ifdef MOTION
 
 #include "I2Cdev.h"
 #include "Wire.h"
 #ifdef MPU_6050
-#include "motion.h"
+#include "MPU6050.h"
 MPU6050 mpu;
 const char* mpu_sensor = "MPU6050";
 #define CLOCK_PLL_XGYRO MPU6050_CLOCK_PLL_XGYRO
@@ -126,10 +126,10 @@ void motion_set_samplerate (uint8_t rate) { // TODO: rate is limited to 255, whi
   else if (config_esp32.motion_rate < 196) {
     dlpf_bw = DLPF_BW_42;
   }
-  else if (config_esp32.motion_rate < 376) {
+  else if (config_esp32.motion_rate < 376) { // TODO: always true
     dlpf_bw = DLPF_BW_98;
   }
-  else if (config_esp32.motion_rate < 512) {
+  else if (config_esp32.motion_rate < 512) { // TODO: always true
     dlpf_bw = DLPF_BW_188;
   }
   else {
@@ -213,7 +213,9 @@ bool mpu_selfTest() {
 bool mpu_acquire() {
   static int16_t mpu_accel_raw_x, mpu_accel_raw_y, mpu_accel_raw_z;
   static int16_t mpu_gyro_raw_x, mpu_gyro_raw_y, mpu_gyro_raw_z;
+  #ifdef MPU_9250
   static int16_t mpu_magn_raw_x, mpu_magn_raw_y, mpu_magn_raw_z;
+  #endif
   static int16_t gravity_z;
   static int64_t mpu_accel_xy2; 
 
@@ -245,7 +247,6 @@ bool mpu_acquire() {
     motion.magn_x = (int16_t) mpu_magn_raw_x * 1200 / 4096;
     motion.magn_y = (int16_t) mpu_magn_raw_y * 1200 / 4096;
     motion.magn_z = (int16_t) mpu_magn_raw_z * 1200 / 4096;
-    
     #endif
     mpu_accel_xy2 = motion.accel_x*motion.accel_x + motion.accel_y*motion.accel_y;
     motion.g = uint16_t (1000*sqrt(float(mpu_accel_xy2 + motion.accel_z*motion.accel_z))/float(gravity_constant)); // [mG]

@@ -1,7 +1,7 @@
 /* 
  *  Fli3d - core system functionality
  *   *  
- *  for ESP32 MH-ET LIVE MiniKit board with the following connections:
+ *  To compile in the Arduino IDE, ESP32 core v1.0.6/2.0.17/3.0.3, for ESP32 MH-ET LIVE MiniKit board with the following connections:
  *  - serial connection to ESP32CAM at 115200 baud
  *  - serial connection to NEO6MV2 GPS receiver at 57600 baud
  *  - I2C bus to MPU6050/MPU9250 accelerometer/gyroscope and BMP280 pressure sensor 
@@ -12,17 +12,17 @@
  */
 
 // Set versioning
-#define SW_VERSION "Fli3d ESP32 v1.1.2 (20220925)"
+#define SW_VERSION "Fli3d ESP32 v1.2.0 (20240802)"
 #define PLATFORM_ESP32 // tell which platform we are on
 
 // Set functionality to compile
-//#define RADIO
+#define RADIO
 #define PRESSURE
 #define MOTION
 #define GPS
-#define CAMERA
-#define TEMPERATURE
-//#define SERIAL_KEEPALIVE_OVERRIDE
+//#define CAMERA
+//#define TEMPERATURE
+#define SERIAL_KEEPALIVE_OVERRIDE
 
 // Libraries
 #include "fli3d.h"
@@ -30,7 +30,7 @@
 
 // Global variables used in this file
 bool reset_gps_timer, separation_sts_changed;
-extern char buffer[JSON_MAX_SIZE];
+extern char buffer[BUFFER_MAX_SIZE];
 
 TaskHandle_t LoopCore0;
 
@@ -45,7 +45,7 @@ void setup() {
   // If FS enabled and initialization successful, load WiFi and other settings from configuration files on FS (accessible over FTP)
   sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
   if (config_this->fs_enable) {
-    if (tm_this->fs_enabled = fs_setup()) {
+    if ((tm_this->fs_enabled = fs_setup())) {
       sprintf (buffer, "%s started on %s", SW_VERSION, subsystemName[SS_THIS]); 
       publish_event (STS_THIS, SS_THIS, EVENT_INIT, buffer);
       publish_packet ((ccsds_t*)tm_this);  // #0
@@ -75,13 +75,13 @@ void setup() {
   #endif // CAMERA 
   
   #ifdef GPS
-  if (esp32.gps_enabled = gps_setup()) {
+  if ((esp32.gps_enabled = gps_setup())) {
     publish_packet ((ccsds_t*)tm_this);  // #3
   }
   #endif // GPS
   
   #ifdef MOTION
-  if (esp32.motion_enabled = motion_setup()) {
+  if ((esp32.motion_enabled = motion_setup())) {
     //mpu6050_calibrate();    // TODO: to be done offline on loose sensor, then put calibration values in configuration file
     //mpu6050_checkConfig(); 
     //mpu6050_printConfig(); 
@@ -90,7 +90,7 @@ void setup() {
   #endif // MOTION
   
   #ifdef PRESSURE
-  if (esp32.pressure_enabled = pressure_setup()) { // needs to be after MOTION
+  if ((esp32.pressure_enabled = pressure_setup())) { // needs to be after MOTION
     bmp280_checkConfig();
     publish_packet ((ccsds_t*)tm_this);  // #5
   }
