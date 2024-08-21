@@ -55,7 +55,9 @@ uint32_t find_gps_baudrate() {
   uint32_t gps_baudrate[6] = { 57600, 9600, 4800, 19200, 38400, 115200 };
   for (uint8_t i=0; i<6; i++) {
     delay (1000);
-    SerialGPS.begin(gps_baudrate[i], SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+    SerialGPS.setPins(GPS_RX_PIN, GPS_TX_PIN);
+    //SerialGPS.begin(gps_baudrate[i], SERIAL_8N1);
+    SerialGPS.begin(gps_baudrate[i]);
     SerialGPS.flush();
     if (check_gps_communication (gps_baudrate[i])) {
       return gps_baudrate[i];
@@ -66,13 +68,11 @@ uint32_t find_gps_baudrate() {
 
 bool check_gps_communication (uint32_t baudrate) {
   char gps_char;
-  uint8_t gps_good;
-  uint8_t gps_bad;
+  uint8_t gps_good = 0;
+  uint8_t gps_bad = 0;
   uint16_t ctr = 0;
   uint32_t start_probe_millis, now_millis;
 
-  gps_good = 0;
-  gps_bad = 0;
   start_probe_millis = millis();
   now_millis = millis();
   while (now_millis - start_probe_millis < 5000) {
@@ -80,25 +80,25 @@ bool check_gps_communication (uint32_t baudrate) {
       gps_char = SerialGPS.read();
       if (ctr++ > 200) {
         if ((gps_char >= ' ' and gps_char <= 'Z') or (uint8_t)gps_char == 10 or (uint8_t)gps_char == 13) {
-          //Serial.print(gps_char);
+          Serial.print(gps_char);
           gps_good++;
         }
         else {
-          //Serial.print("[");
-          //Serial.print(gps_char);
-          //Serial.print("]");
+          Serial.print("[");
+          Serial.print(gps_char);
+          Serial.print("]");
           gps_bad++;
         }
       }
     }
     now_millis = millis();
   } // timeout
-  //Serial.println();
-  //Serial.print("GPS ratio ");
-  //Serial.print(gps_good);
-  //Serial.print(":");
-  //Serial.println(gps_bad);   
-  if (gps_good == 255 and gps_bad < 5) {
+  Serial.println();
+  Serial.print("GPS ratio ");
+  Serial.print(gps_good);
+  Serial.print(":");
+  Serial.println(gps_bad);   
+  if (gps_good == 255) {
     // proper data flow received
     return true;
   }
